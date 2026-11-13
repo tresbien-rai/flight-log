@@ -1,6 +1,6 @@
 # Flight Log — Design Document
 
-Status: **draft 1**, for review. Nothing here is built yet except the repo scaffold.
+Status: **draft 2**, incorporating the pilot's answers to the first round of open questions. Nothing here is built yet except the repo scaffold.
 
 ## 1. What this is
 
@@ -26,18 +26,27 @@ It exists because the two apps in use today (LogTen Pro and ForeFlight) are both
 
 ### Decisions already made
 
-| Question                         | Answer                                                                                                 |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Front end                        | React + TypeScript + Vite, installable PWA                                                             |
-| Architecture                     | Architect's choice (see §3)                                                                            |
-| Role next to LogTen / ForeFlight | Runs alongside them at first, as an audit tool and report generator. Becomes the master logbook later. |
-| When the two apps disagree       | No default winner. The pilot decides, with bulk actions for systematic patterns.                       |
+| Question                              | Answer                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Front end                             | React + TypeScript + Vite, installable PWA                                                             |
+| Architecture                          | Architect's choice (see §3)                                                                            |
+| Role next to LogTen / ForeFlight      | Runs alongside them at first, as an audit tool and report generator. Becomes the master logbook later. |
+| When the two apps disagree            | No default winner. The pilot decides, with bulk actions for systematic patterns.                       |
+| Logbook date                          | Local date at the departure airport                                                                    |
+| Clock-time entry                      | UTC or local, both always shown; UTC is the default                                                    |
+| Converted aircraft (CRJ-550, CRJ-450) | Their own lines on reports, shown as sub-lines beside the type they were converted from                |
+| Hobbs / tach                          | Optional per profile; total time calculated from them when used                                        |
+| Experience report                     | Start by matching ForeFlight's content, with every section, row and column switchable                  |
+| Hosting                               | Railway (static site)                                                                                  |
+| Drive layout                          | A visible "Flight Log" folder                                                                          |
 
 ---
 
 ## 2. What the real data says
 
 Both exports (taken 2026-03-06) were profiled before designing anything. The findings below drive several decisions.
+
+The exports are old and the pilot has since cleared the discrepancies listed here. The numbers stay in this document as evidence of what kinds of error occur, not as a to-do list.
 
 |                       | LogTen Pro                                                                                                                                               | ForeFlight                                                       |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -167,7 +176,7 @@ This matters for three reasons. The logic is the valuable part and must be exhau
 ### 3.3 Storage and sync
 
 - **Local:** IndexedDB via Dexie. Tables: entries, airframes, aircraft types, people, airports (user-added only), custom field definitions, import batches, reconciliation decisions, settings.
-- **Remote:** a folder the app creates in Drive, using the narrow `drive.file` permission (the app can see only files it created). The folder is visible to the pilot, so the logbook file and backups can be copied or downloaded without the app.
+- **Remote:** a visible "Flight Log" folder the app creates in Drive, using the narrow `drive.file` permission (the app can see only files it created). The folder is visible to the pilot, so the logbook file and backups can be copied or downloaded without the app.
 - **File shape:** one `logbook.json` containing every record (about 2 MB for the current logbook), plus `backups/logbook-YYYY-MM-DD.json` written at most once a day and before every import or bulk change.
 - **Merging two devices:** every record has an `updatedAt` and deletions leave a tombstone. On sync, the app downloads the remote file, merges record by record (newest edit wins per record), and uploads using Drive's version check so a concurrent upload is detected and retried instead of overwritten. For one pilot on one or two devices this is enough; it is deliberately not a general collaborative-editing system.
 - **Schema version** is stored in the file. Migrations are pure functions in core, tested against saved samples of every earlier version.
@@ -175,7 +184,7 @@ This matters for three reasons. The logic is the valuable part and must be exhau
 
 ### 3.4 Hosting
 
-Any static host works. Not decided; see open questions.
+The built app is static files, served from Railway alongside the pilot's assistant app. Deployment is a build on push to the main branch. Nothing on Railway holds logbook data.
 
 ---
 
@@ -201,6 +210,11 @@ interface Entry {
   off?: string;
   on?: string;
   in?: string; // UTC instants
+  hobbsOut?: number; // tenths of an hour, as shown on the meter
+  hobbsIn?: number;
+  tachOut?: number;
+  tachIn?: number;
+  totalSource: 'block' | 'hobbs' | 'typed';
   scheduledOut?: string;
   scheduledIn?: string;
 
@@ -265,15 +279,32 @@ Points worth calling out:
 - **Where clock times exist, `total` is derived from them** (in − out) and cannot silently disagree. This would have caught the one 21.8 h entry for a 2.3 h leg in ForeFlight.
 - **A simulator session is `kind: 'simulator'`**, with its length in `simulator`, `total` zero, no airports required, and a training device instead of an airframe. Simulated-instrument time and approaches are allowed on it.
 - **Approaches are structured:** type from a fixed list (ILS, LOC, RNAV (GPS), RNAV (RNP), VOR, NDB, visual, …), runway normalised to two digits + L/C/R, airport, and flags (circle-to-land, missed). The chart title can be kept as a note.
-- **Custom fields are first-class.** A definition has a name, a type (duration, count, toggle, text) and which profiles show it. The existing ones migrate as: `DG-PPL` / `DG-IRA` / `DG-CPL` (durations), passenger count (count), flag (toggle). Cross-country over 50 NM becomes a built-in, because it can be checked against the distance between the airports.
+- **Custom fields are first-class.** A definition has a name, a type (duration, count, toggle, text) and which profiles show it. The existing ones migrate as: `DG-PPL` / `DG-IRA` / `DG-CPL` (durations), passenger count (count), flag (toggle). The matching LogTen columns arrive unlabelled (`customTime1/2/3` and `customTime10`); the pilot has confirmed they are the same four fields. Cross-country over 50 NM becomes a built-in, because it can be checked against the distance between the airports.
 
 ### 4.2 Dates and times
 
 - Clock times are stored as UTC instants (`2025-06-22T17:31Z`), never as bare `HH:MM`.
 - `date` is the **local date at the departure airport**, which is what a paper logbook and an airline schedule use. When out-time and departure airport are known it is derived; for older entries with no clock times it is stored as given.
-- The UTC date is always available as a derived value, so an import can be compared under either convention.
+- The UTC date is always available as a derived value.
 
-This is a recommendation, not a settled point; see open questions.
+**Entering clock times.** ACARS reports give UTC, and typing UTC avoids conversion mistakes, so UTC is the default. Like LogTen, and unlike ForeFlight:
+
+- Each time field accepts either UTC or local, with a switch on the form (remembered per profile).
+- Whichever is typed, the other is shown beside it at once, using the time zone of the relevant airport (departure for out/off, arrival for on/in).
+- The local date, and a "+1" marker when a leg crosses midnight in either zone, are shown as soon as the out time is entered, so a wrong date is visible before saving.
+- Only the UTC instant is stored. Local is always computed, so a time-zone database update can never change what was logged.
+
+This needs a time zone for every airport, which the bundled airport table carries (§4.4).
+
+**Hobbs and tach.** Optional, switched on per profile (off by default, intended for GA). An entry then carries `hobbsOut` / `hobbsIn` and `tachOut` / `tachIn`. Each entry records where its total came from:
+
+| Source of total | How it is calculated       |
+| --------------- | -------------------------- |
+| Block times     | in − out (airline default) |
+| Hobbs           | hobbs in − hobbs out       |
+| Typed           | entered directly           |
+
+When a source is present the total is calculated from it and a typed total that disagrees is a validation error. Tach is recorded but never drives the total. The previous hobbs-in for the same airframe is offered as the next hobbs-out, and a gap or overlap between consecutive entries on one airframe is a note.
 
 ### 4.3 Aircraft: airframes, registrations, configurations
 
@@ -287,7 +318,8 @@ interface AircraftType {
   category: 'airplane' | 'rotorcraft' | 'glider' | ...;
   class: 'ASEL' | 'AMEL' | 'ASES' | 'AMES' | ...;
   engine: 'piston' | 'turboprop' | 'turbofan' | ...;
-  typeRating?: string;        // 'CL-65' — shared by CRJ-200/550/700/900
+  typeRating?: string;        // 'CL-65' — shared by CRJ-200/450/550/700/900
+  variantOf?: string;         // 'CRJ-550' → 'CRJ-700', 'CRJ-450' → 'CRJ-200'
   complex: boolean; highPerformance: boolean; taa: boolean;
   pressurized: boolean; retractable: boolean; tailwheel: boolean;
   seats?: number; mtowLb?: number;
@@ -307,7 +339,9 @@ interface TrainingDevice { id: string; name: string; level: 'FFS' | 'FTD' | 'AAT
 - An **entry points at an airframe**, not at a tail string. What tail it wore and what type it was are looked up by the entry's date.
 - **A conversion is one edit:** "N7xxSK: CRJ-700 until 2025-03-09, CRJ-550 from 2025-03-10". The app shows which existing entries move to the new type, and every report follows automatically. Nothing is re-typed.
 - **A re-registration is one edit** too, and the airframe's history stays joined across both tails.
-- **Reports can group by type, by ICAO designator, or by type rating**, so the CRJ-550 can be shown separately or rolled into CL-65 time, whichever an application asks for.
+- **Converted variants are always counted separately.** The CRJ-550 (from the CRJ-700) and the coming CRJ-450 (from the CRJ-200) share a certificate and an ICAO designator with their parent, but each is its own type here, linked to the parent by `variantOf`. Reports list them as separate lines next to the parent (§8). Adding two lines is easy; splitting one line after the fact is not.
+- **Reports can also group by ICAO designator or by type rating** when an application asks for CL-65 time as one number.
+- **Conversion dates can be filled in later.** No CRJ-550 time is logged yet, so this is in place before it is needed. An airframe with no configuration history simply has one type. When dates are found, entering them re-counts any affected entries.
 - **Attributes belong to the type, not the tail**, so one CRJ cannot be a turbojet with fixed gear. A per-airframe override exists for real differences (a TAA-equipped 172 among non-TAA ones).
 - **Tails are normalised on entry** (trimmed, upper-cased) and are unique per date range.
 - A fleet conversion list can be pasted or imported in bulk (tail + effective date), since a company converts many airframes.
@@ -331,7 +365,7 @@ The entry form is not one form. A **profile** decides which fields are shown, wh
 | Shown first | flight number, tail, from/to, out/off/on/in, PF/PM        | tail, from/to, total, landings   | tail, student, total, lesson type | device, length, approaches |
 | Pre-filled  | seat, operator, cross-country, crew from the previous leg | PIC = total, aircraft last flown | PIC = dual given = total          | —                          |
 | Derived     | total, night, landings day/night split                    | night if times given             | —                                 | —                          |
-| Hidden      | solo, dual, hobbs                                         | flight number, pax               | flight number, pax                | airports, landings         |
+| Hidden      | solo, dual                                                | flight number, pax               | flight number, pax                | airports, landings         |
 
 Profiles are data, not code, so a new kind of flying (Part 135, a second airline) is a new profile, not a new screen. Night time and the day/night split of landings are computed from times and airport positions whenever those are known, and can be overridden.
 
@@ -437,23 +471,49 @@ Real exports contain other people's names. They live only in the git-ignored `da
 
 ## 8. Experience report
 
-Modelled on ForeFlight's Experience Report: a grid whose rows are slices of the logbook and whose columns are the things applications ask for.
+The first version reproduces the content of ForeFlight's Experience Report, whose strength is the fine breakdown by class and by type. Every section, row and column can be switched off, and anything that is entirely zero is hidden unless asked for (ForeFlight always prints NVG columns; this report will not).
 
-- **Columns:** total, PIC, SIC, turbine, multi-engine, night, cross-country, actual instrument, simulated instrument, dual received, dual given, simulator, landings (day / night), approaches.
-- **Row groups:**
-  - by period — last 7 / 30 / 90 days, 6 / 12 / 24 months, each calendar year, all time
-  - by category and class
-  - by aircraft type, with a switch to group by type rating
-  - **by operating rule** — Part 121, Part 91, other
-  - by attribute — turbine, multi-engine, complex, high-performance, tailwheel, TAA
-- **Cross cuts** applications ask for and existing reports make you compute by hand: turbine PIC, multi-engine PIC, Part 121 SIC, PIC cross-country, night PIC, instruction given by student level.
-- **Any report can be filtered first** (date range, rule, operator, type), so "Part 121 only, last 5 years" is one click.
+### 8.1 Sections (from the ForeFlight sample)
+
+| Section                         | Rows                                                              | Columns                                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header                          | —                                                                 | Name, period covered ("All Time" or a date range)                                                                                               |
+| Certificates                    | Each certificate with its ratings and type ratings; medical class | —                                                                                                                                               |
+| Flight tags                     | Last flight review, last IPC                                      | date                                                                                                                                            |
+| Aircraft characteristic         | Complex, TAA, high performance, retract, turbine                  | total                                                                                                                                           |
+| Category / class                | AMEL, ASEL, …                                                     | total, PIC                                                                                                                                      |
+| Engine type                     | Turbofan, piston, …                                               | total, PIC                                                                                                                                      |
+| Simulator (by device level)     | AATD, BATD, FFS, FTD                                              | simulated flight, simulated instrument                                                                                                          |
+| **Experience by aircraft type** | One per type, with flight count, plus totals                      | total time, day landings, night landings, all landings, PIC, SIC, XC, actual instrument, simulated instrument, night, dual given, dual received |
+| Simulator by type represented   | One per type, with session count, plus totals                     | simulated flight, simulated instrument, dual given, dual received                                                                               |
+| Custom fields by aircraft type  | One per type, plus totals                                         | one column per custom field                                                                                                                     |
+
+Certificates, medical, flight review and IPC dates are typed into a small profile page for now; they are printed, not tracked.
+
+### 8.2 Changes from ForeFlight
+
+- **Show / hide anything.** Sections, columns and rows are individually switchable, and the choices are saved as named layouts ("Airline application", "Insurance renewal").
+- **Empty columns and rows disappear** by default.
+- **Converted variants are sub-lines.** CRJ-700 and CRJ-550 are separate rows, shown together with an optional combined line above them; the same for CRJ-200 and CRJ-450 (figures below are made up):
+
+  ```
+  CRJ-700 family      739 flights   1,420.5
+     CRJ-700          565 flights   1,106.0
+     CRJ-550          174 flights     314.5
+  ```
+
+  ForeFlight groups by ICAO code and so cannot separate them.
+
+- **Types are our types, not ICAO codes**, so `C172` can stay one line or be opened into 172R / 172S when wanted.
+- **Operating rule as a dimension.** A Part 121 / Part 91 split is available as a section of its own and as a filter on the whole report.
+- **Extra columns available** (off by default): turbine PIC, multi-engine PIC, PIC cross-country, night PIC, approaches, holds.
+- **Period.** All time, a date range, or a set of standard look-backs (30 / 90 days, 6 / 12 / 24 months) side by side.
+- **Custom fields sit where they belong.** Duration fields (DG-PPL, DG-IRA, DG-CPL, XC over 50 NM) can be columns in the main experience table instead of a separate table. Toggles and counts (flag, passenger count) are off by default, since a sum of passenger counts is rarely wanted.
 - **Every number can be tapped** to list the entries behind it.
-- **Output:** on screen, print/PDF, and CSV. Rounding is a report option (per flight vs. on the total) and is printed on the report.
+- **Rounding** is a report option (per flight, as ForeFlight does, or once on the total) and is printed on the report.
+- **Output:** on screen, print / PDF (landscape, as the sample), and CSV.
 
-Reports are pure functions in core: entries in, a table out. The UI and the PDF only draw the table.
-
-The exact layout needs a sample of the ForeFlight report and the pilot's list of tweaks; see open questions.
+Reports are pure functions in core: entries and a layout in, a set of tables out. The UI and the PDF only draw the tables.
 
 ---
 
@@ -510,11 +570,8 @@ Milestones 1–3 need no UI and are well-specified, test-driven work, which suit
 
 ## 12. Open questions
 
-1. **Logbook date:** local date at departure (recommended, matches paper logbooks and schedules) or UTC date? And which one have the LogTen and ForeFlight entries been using so far?
-2. **Experience report:** a sample PDF of the ForeFlight report as used today, and the list of tweaks wanted.
-3. **CRJ-550:** how should it count on a report by default — its own line, or inside CRJ-700 / CL-65 with a sub-line? And is a list of converted tails with dates available from the company?
-4. **Custom time fields in LogTen** (`customTime1/2/3`, `customTime10`): assumed to be the same as ForeFlight's DG-PPL / DG-IRA / DG-CPL and XC (50NM). Confirm.
-5. **Hosting:** GitHub Pages (needs a paid plan for a private repo), Cloudflare Pages, or Railway static hosting.
-6. **Drive layout:** a visible "Flight Log" folder (recommended, backups are reachable without the app) or Drive's hidden app-data area.
-7. **Crew schedule source and format**, when that feature comes up.
-8. **Hobbs / tach** for GA entries: wanted, or is total time enough? (Both exports have them empty.)
+Answered in draft 2: logbook date, time entry, report layout, converted variants, custom field labels, hosting, Drive layout, hobbs/tach. Still open:
+
+1. **Conversion dates** for CRJ-700 → CRJ-550 (and later CRJ-200 → CRJ-450) airframes. Not needed until the first such flight is logged.
+2. **Crew schedule source and format**, when that feature comes up.
+3. **Mapping each LogTen custom time field to its label.** Fields 1–3 are the three dual-given levels, but which is PPL, IRA and CPL is not in the export. It can be worked out by comparing values against ForeFlight's labelled columns during import, then confirmed once.
