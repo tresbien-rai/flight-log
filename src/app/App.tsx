@@ -1,5 +1,6 @@
 import { HashRouter, Route, Routes } from 'react-router';
 import { AppShell } from './components/AppShell';
+import { AuditRoute } from './routes/AuditRoute';
 import { ImportRoute } from './routes/ImportRoute';
 import { LogbookRoute } from './routes/LogbookRoute';
 import { StoreProvider } from './store/StoreProvider';
@@ -10,6 +11,8 @@ export function AppRoutes() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="import" element={<ImportRoute />} />
+        {/* `/audit` and `/audit/:id` are one screen: the id only selects a flight. */}
+        <Route path="audit/*" element={<AuditRoute />} />
         {/* `/` and `/entry/:id` are one screen: the entry id only selects a row. */}
         <Route path="*" element={<LogbookRoute />} />
       </Route>

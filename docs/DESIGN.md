@@ -467,6 +467,10 @@ How this is built (`src/core/reconcile/types.ts` holds the contract, `resolve.ts
 
 A table of pairs, filterable by difference class, field, year, aircraft type and rule. Selecting a pair shows the two rows side by side with differing fields highlighted, and the validation findings for each candidate value. A summary at the top shows grand totals per source and the running total of the merged logbook, so the pilot can see the numbers converge.
 
+As built: the list of flights to review sits beside either an overview (what is open, totals, rules, the build button) or one flight. On a narrow screen the overview sits above the list and a flight opens as a full-screen sheet. The list shows only flights that differ in meaning, need their pairing confirmed, or are in one app only; it filters by "to do", "decided by you" and by the field that differs. Rules for whole groups are: rounding (keep the more precise), blank in one app (take what is there), and, for remarks, crew and route only, one choice for every real difference in that field, because those never change a total. "My logbook" is written only when the pilot presses the build button; it may be built while things are open.
+
+Two comparisons were loosened after seeing the real exports: remarks compare without case and punctuation, and remarks that contain the other app's whole text count as the other app missing something (ForeFlight comments carry the flight number); routes compare by waypoint, whatever the separators.
+
 ### 7.4 Filling in the operating rule
 
 Neither source records the rule reliably. On import, the app proposes one per entry from the evidence (explicit flag → airline type + SIC + flight number or crew → otherwise 91), groups the proposals ("118 unflagged CRJ legs, 2022-12 to 2023-07: mark as Part 121?"), and applies them only when confirmed.
@@ -561,7 +565,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1). Milestone 5 is under way: the decision model, the resolve step and their storage exist (§7.2); the audit screen does not yet.
+Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1). Milestone 5 has a working audit screen (§7.2, §7.3); pairing by hand, operating-rule proposals and type mapping are still to come.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

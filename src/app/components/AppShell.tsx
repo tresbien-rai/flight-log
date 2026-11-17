@@ -17,6 +17,7 @@ export function AppShell() {
     if (pathname.startsWith('/entry/')) void navigate('/');
   };
   const onImport = pathname.startsWith('/import');
+  const onAudit = pathname.startsWith('/audit');
   const context: ShellContext = { books, retryBooks, bookId, selectBook };
 
   return (
@@ -24,8 +25,11 @@ export function AppShell() {
       <header className="app-header">
         <span className="app-name">Flight Log</span>
         <nav className="app-nav" aria-label="Main">
-          <Link to="/" aria-current={onImport ? undefined : 'page'}>
+          <Link to="/" aria-current={onImport || onAudit ? undefined : 'page'}>
             Logbook
+          </Link>
+          <Link to="/audit" aria-current={onAudit ? 'page' : undefined}>
+            Audit
           </Link>
           <Link to="/import" aria-current={onImport ? 'page' : undefined}>
             Import
