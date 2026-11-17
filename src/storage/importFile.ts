@@ -70,6 +70,14 @@ export async function importFile(
     };
   }
 
+  // The file first: a book without its file cannot be audited, a file without its book is
+  // harmless and is replaced by the next import.
+  await store.saveSourceFile({
+    source,
+    fileName: file.name,
+    text: file.text,
+    importedAt: info.updatedAt,
+  });
   await store.replaceBook(source, logbook, info);
   const saved = (await store.listBooks()).find((b) => b.book === source);
   return {

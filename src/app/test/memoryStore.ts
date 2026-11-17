@@ -1,10 +1,20 @@
+import type { SourceId } from '@core/importers';
 import type { Logbook } from '@core/model';
-import { BOOK_IDS, type BookId, type BookInfo, type LogbookStore } from '@storage/index';
+import { decisionKey, type Decision } from '@core/reconcile';
+import {
+  BOOK_IDS,
+  type BookId,
+  type BookInfo,
+  type LogbookStore,
+  type SourceFile,
+} from '@storage/index';
 
 /** A `LogbookStore` held in memory, for component tests. */
 export function createMemoryStore(): LogbookStore & { settings: Map<string, unknown> } {
   const books = new Map<BookId, { logbook: Logbook; info: BookInfo }>();
   const settings = new Map<string, unknown>();
+  const sources = new Map<SourceId, SourceFile>();
+  const decisions = new Map<string, Decision>();
   const listeners = new Set<() => void>();
   const notify = () => queueMicrotask(() => [...listeners].forEach((l) => l()));
 
@@ -22,6 +32,21 @@ export function createMemoryStore(): LogbookStore & { settings: Map<string, unkn
     },
     deleteBook: async (book) => {
       books.delete(book);
+      if (book !== 'main') sources.delete(book);
+      notify();
+    },
+    saveSourceFile: async (file) => {
+      sources.set(file.source, file);
+      notify();
+    },
+    loadSourceFile: async (source) => sources.get(source),
+    listDecisions: async () => [...decisions.values()],
+    putDecisions: async (list) => {
+      for (const d of list) decisions.set(decisionKey(d), d);
+      notify();
+    },
+    removeDecisions: async (keys) => {
+      for (const key of keys) decisions.delete(key);
       notify();
     },
     getSetting: async <T>(key: string) => settings.get(key) as T | undefined,
