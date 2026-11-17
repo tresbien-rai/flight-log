@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Logbook } from '@core/model';
 import { indexLogbook } from '@core/query';
-import { validate, type Finding } from '@core/validation';
+import { RULES_OFF_BY_SOURCE, validate, type Finding } from '@core/validation';
 import { findingsByEntry } from '../lib/findings';
 import { useAirports } from './useAirports';
 
@@ -37,7 +37,9 @@ export function useLogbookAnalysis(logbook: Logbook): Analysis {
     const timer = setTimeout(() => {
       setDone({
         logbook,
-        findings: findingsByEntry(validate(logbook, { airports: lookup })),
+        findings: findingsByEntry(
+          validate(logbook, { airports: lookup, disabled: disabledFor(logbook) }),
+        ),
       });
     }, 0);
     return () => clearTimeout(timer);
@@ -50,4 +52,10 @@ export function useLogbookAnalysis(logbook: Logbook): Analysis {
     checking: !ready,
     airportsMissing: airports.status === 'failed',
   };
+}
+
+/** Rules switched off because of the app this book was imported from. */
+function disabledFor(logbook: Logbook): readonly string[] {
+  const batch = logbook.entries.find((e) => e.source.kind === 'import')?.source.batchId;
+  return batch === 'logten' || batch === 'foreflight' ? RULES_OFF_BY_SOURCE[batch] : [];
 }

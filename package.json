@@ -19,7 +19,8 @@
     "profile": "tsx scripts/profile.ts",
     "audit": "tsx scripts/audit.ts",
     "build:airports": "tsx scripts/build-airports.ts",
-    "validate": "tsx scripts/validate.ts"
+    "validate": "tsx scripts/validate.ts",
+    "start": "sirv dist --host 0.0.0.0 --port ${PORT:-4173} --single"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",
@@ -28,7 +29,8 @@
     "dexie": "^4.4.7",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router": "^7.18.5"
+    "react-router": "^7.18.5",
+    "sirv-cli": "^3.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

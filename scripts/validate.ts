@@ -13,7 +13,7 @@ import airportData from '../src/core/airports/airports.data.json' with { type: '
 import { importForeFlight, importLogTen, toLogbook } from '../src/core/importers';
 import type { Entry } from '../src/core/model';
 import { valueOn } from '../src/core/model';
-import { ALL_RULES, validate } from '../src/core/validation';
+import { ALL_RULES, RULES_OFF_BY_SOURCE, validate } from '../src/core/validation';
 import type { Finding, Severity } from '../src/core/validation';
 import { COLUMN_PRESETS } from '../src/core/importers/presets';
 
@@ -32,7 +32,7 @@ const options = { columns: COLUMN_PRESETS[source] };
 const imported =
   source === 'logten' ? importLogTen(text, options) : importForeFlight(text, options);
 const { logbook, notes } = toLogbook(imported, { airports });
-const findings = validate(logbook, { airports });
+const findings = validate(logbook, { airports, disabled: RULES_OFF_BY_SOURCE[source] });
 
 const sourceDate = new Map(imported.records.map((r) => [`${r.source}:${r.line}`, r.date]));
 const entryById = new Map(logbook.entries.map((e) => [e.id, e]));
