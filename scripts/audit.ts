@@ -14,7 +14,7 @@ import { DURATION_FIELDS } from '../src/core/model';
 import { diffPair, matchRecords, MATCH_TIERS } from '../src/core/reconcile';
 import type { FieldDiff, PairDiff } from '../src/core/reconcile';
 import { formatDecimal } from '../src/core/time/duration';
-import { COLUMN_PRESETS } from './columns';
+import { COLUMN_PRESETS } from '../src/core/importers/presets';
 
 const args = process.argv.slice(2);
 const outAt = args.indexOf('--out');

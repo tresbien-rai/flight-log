@@ -1,8 +1,9 @@
 /**
  * Column mappings for the user-defined fields in this pilot's exports. These describe one
- * person's logbook setup, not the file formats, so they live here rather than in the importers.
+ * person's logbook setup, not the file formats. They become an app setting once there is a
+ * settings screen.
  */
-import type { ColumnMapping, SourceId } from '../src/core/importers';
+import type { ColumnMapping, SourceId } from './types';
 
 export const COLUMN_PRESETS: Record<SourceId, Record<string, ColumnMapping>> = {
   logten: {

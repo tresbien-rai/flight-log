@@ -15,7 +15,7 @@ import type { Entry } from '../src/core/model';
 import { valueOn } from '../src/core/model';
 import { ALL_RULES, validate } from '../src/core/validation';
 import type { Finding, Severity } from '../src/core/validation';
-import { COLUMN_PRESETS } from './columns';
+import { COLUMN_PRESETS } from '../src/core/importers/presets';
 
 const args = process.argv.slice(2);
 const outAt = args.indexOf('--out');

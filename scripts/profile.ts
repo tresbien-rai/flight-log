@@ -11,7 +11,7 @@ import { importForeFlight, importLogTen } from '../src/core/importers';
 import type { ImportResult, SourceRecord } from '../src/core/importers';
 import { DURATION_FIELDS } from '../src/core/model';
 import { formatDecimal } from '../src/core/time/duration';
-import { COLUMN_PRESETS } from './columns';
+import { COLUMN_PRESETS } from '../src/core/importers/presets';
 
 const [source, file, ...flags] = process.argv.slice(2);
 if ((source !== 'logten' && source !== 'foreflight') || file === undefined) {
