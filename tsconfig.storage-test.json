@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "outDir": "./node_modules/.tmp/tsc-storage-test",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsc-storage-test.tsbuildinfo"
+  },
+  "include": ["src/storage/**/*.test.ts"],
+  "references": [{ "path": "./tsconfig.core.json" }, { "path": "./tsconfig.app.json" }]
+}
