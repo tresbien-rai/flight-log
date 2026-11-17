@@ -10,3 +10,5 @@
 - **Before finishing**, run: `npm run lint`, `npm run format:check`, `npm run typecheck`,
   `npm test`, `npm run build`.
 - **Design.** Decisions live in `docs/DESIGN.md`; update it when behaviour changes.
+- **Start here.** `docs/HANDOFF.md` has the current state, known gaps and the next step. Keep it
+  current when a milestone lands.
