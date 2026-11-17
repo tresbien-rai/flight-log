@@ -7,6 +7,12 @@
     "outDir": "./node_modules/.tmp/tsc-app",
     "tsBuildInfoFile": "./node_modules/.tmp/tsc-app.tsbuildinfo"
   },
-  "include": ["src/app", "src/storage", "src/vite-env.d.ts"],
+  "include": [
+    "src/app",
+    "src/storage",
+    "src/vite-env.d.ts",
+    "src/core/airports/airports.data.json"
+  ],
+  "exclude": ["src/storage/**/*.test.ts"],
   "references": [{ "path": "./tsconfig.core.json" }]
 }
