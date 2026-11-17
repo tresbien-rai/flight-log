@@ -279,7 +279,7 @@ Points worth calling out:
 - **Where clock times exist, `total` is derived from them** (in − out) and cannot silently disagree. This would have caught the one 21.8 h entry for a 2.3 h leg in ForeFlight.
 - **A simulator session is `kind: 'simulator'`**, with its length in `simulator`, `total` zero, no airports required, and a training device instead of an airframe. Simulated-instrument time and approaches are allowed on it.
 - **Approaches are structured:** type from a fixed list (ILS, LOC, RNAV (GPS), RNAV (RNP), VOR, NDB, visual, …), runway normalised to two digits + L/C/R, airport, and flags (circle-to-land, missed). The chart title can be kept as a note.
-- **Custom fields are first-class.** A definition has a name, a type (duration, count, toggle, text) and which profiles show it. The existing ones migrate as: `DG-PPL` / `DG-IRA` / `DG-CPL` (durations), passenger count (count), flag (toggle). The matching LogTen columns arrive unlabelled (`customTime1/2/3` and `customTime10`); the pilot has confirmed they are the same four fields. Cross-country over 50 NM becomes a built-in, because it can be checked against the distance between the airports.
+- **Custom fields are first-class.** A definition has a name, a type (duration, count, toggle, text) and which profiles show it. The existing ones migrate as: `DG-PPL` / `DG-IRA` / `DG-CPL` (durations), passenger count (count), flag (toggle). The matching LogTen columns arrive unlabelled (`customTime1/2/3` and `customTime10`); the pilot has confirmed they are the same four fields, and matching column totals identifies fields 1, 2 and 3 as CPL, IRA and PPL. Cross-country over 50 NM becomes a built-in, because it can be checked against the distance between the airports.
 
 ### 4.2 Dates and times
 
@@ -549,6 +549,8 @@ interface DraftEntry {
 
 ## 11. Build order
 
+Milestones 0 and 1 are done.
+
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | 0     | Scaffold                                                      | Repo, tooling, CI, this document                                                                  |
@@ -570,8 +572,7 @@ Milestones 1–3 need no UI and are well-specified, test-driven work, which suit
 
 ## 12. Open questions
 
-Answered in draft 2: logbook date, time entry, report layout, converted variants, custom field labels, hosting, Drive layout, hobbs/tach. Still open:
+Answered: logbook date, time entry, report layout, converted variants, custom field labels, hosting, Drive layout, hobbs/tach. Still open:
 
 1. **Conversion dates** for CRJ-700 → CRJ-550 (and later CRJ-200 → CRJ-450) airframes. Not needed until the first such flight is logged.
 2. **Crew schedule source and format**, when that feature comes up.
-3. **Mapping each LogTen custom time field to its label.** Fields 1–3 are the three dual-given levels, but which is PPL, IRA and CPL is not in the export. It can be worked out by comparing values against ForeFlight's labelled columns during import, then confirmed once.
