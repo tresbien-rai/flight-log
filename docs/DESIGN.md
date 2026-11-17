@@ -550,7 +550,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 3 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1).
+Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1).
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
