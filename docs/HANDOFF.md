@@ -20,7 +20,7 @@ Last updated: end of milestone 4.
 - **Branch:** all work is on `claude/clever-gauss-07u08g`. The repository has no `main` branch
   yet, so there has never been a pull request. Creating `main` from this branch and switching
   Railway to it is a sensible first step for whoever has permission to push it.
-- **Hosting:** Railway project "Flight Log", service `web`, built from the branch above on every
+- **Hosting:** <https://web-production-30875dbb.up.railway.app>. Railway project "Flight Log", service `web`, built from the branch above on every
   push. `npm run build` then `npm start` (a static file server over `dist/`). Nothing on
   Railway stores logbook data; it lives in the browser's IndexedDB.
 - **Checks:** `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`,
