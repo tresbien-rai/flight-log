@@ -549,7 +549,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 and 1 are done.
+Milestones 0, 1 and 2 are done.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

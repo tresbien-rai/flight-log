@@ -34,12 +34,22 @@ export function diffRecords(a: SourceRecord, b: SourceRecord): FieldDiff[] {
   for (const f of ['out', 'off', 'on', 'in', 'scheduledOut', 'scheduledIn'] as const) {
     const x = a.clock[f];
     const y = b.clock[f];
-    const d = scalar(`clock.${f}`, x, y);
-    if (d) {
-      d.a = x === undefined ? undefined : hhmm(x);
-      d.b = y === undefined ? undefined : hhmm(y);
-      push(d);
-    }
+    if (x === y) continue;
+    // Midnight is a real time, so a blank clock is never equivalent to 00:00.
+    const verdict: Verdict =
+      x === undefined
+        ? missing('missing-a')
+        : y === undefined
+          ? missing('missing-b')
+          : { class: 'real' };
+    push(
+      make(
+        `clock.${f}`,
+        x === undefined ? undefined : hhmm(x),
+        y === undefined ? undefined : hhmm(y),
+        verdict,
+      ),
+    );
   }
 
   // 3. Durations.

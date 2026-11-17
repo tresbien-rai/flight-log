@@ -115,7 +115,7 @@ describe('diffRecords: clock', () => {
     });
   });
 
-  it('blank vs value is systematic; blank vs 00:00 is equivalent', () => {
+  it('blank vs value is systematic; blank vs 00:00 is missing too', () => {
     expect(one({ clock: { in: 600 } }, { clock: {} })).toEqual({
       field: 'clock.in',
       a: '10:00',
@@ -126,7 +126,7 @@ describe('diffRecords: clock', () => {
     expect(one({ clock: {} }, { clock: { off: 0 } })).toMatchObject({
       a: undefined,
       b: '00:00',
-      class: 'equivalent',
+      class: 'systematic',
     });
   });
 

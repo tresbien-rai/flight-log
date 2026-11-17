@@ -16,7 +16,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
-    "profile": "tsx scripts/profile.ts"
+    "profile": "tsx scripts/profile.ts",
+    "audit": "tsx scripts/audit.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
