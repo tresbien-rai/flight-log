@@ -5,8 +5,7 @@ import { finding, haversineNm, resolveEnds } from './helpers';
 const XC_MIN_NM = 50;
 const MAX_KT = 600;
 const MIN_KT = 40;
-const JET_MIN_KT = 150;
-const JET_MIN_KT_DISTANCE_NM = 150;
+const JET_CRUISE_KT = 380;
 const MIN_KT_DISTANCE_NM = 50;
 
 export const implausibleDuration: EntryRule = {
@@ -46,12 +45,13 @@ export const implausibleDuration: EntryRule = {
       const nm = haversineNm(ends.from, ends.to);
       const kt = nm / (total / 60);
       const where = `${entry.from} to ${entry.to}`;
-      // A jet averaging under 150 kt block-to-block over a real distance is almost always a
-      // mistyped time; a piston aircraft can legitimately be far slower.
+      // A jet's block time is roughly cruise time plus half an hour on the ground. More than
+      // double that plus an hour is almost always a mistyped time. Block speed alone is no
+      // guide: a short leg with a long taxi is slow and perfectly normal.
       const engine = ctx.typeOf(entry)?.engine;
       const jet = engine === 'turbofan' || engine === 'turbojet';
-      const minKt = jet ? JET_MIN_KT : MIN_KT;
-      const minDistance = jet ? JET_MIN_KT_DISTANCE_NM : MIN_KT_DISTANCE_NM;
+      const expected = (nm / JET_CRUISE_KT) * 60 + 30;
+      const tooSlow = jet ? total > 2 * expected + 60 : kt < MIN_KT && nm > MIN_KT_DISTANCE_NM;
       if (kt > MAX_KT) {
         out.push(
           finding(
@@ -62,14 +62,14 @@ export const implausibleDuration: EntryRule = {
             `${Math.round(nm)} NM from ${where} in ${hours(total)} implies ${Math.round(kt)} kt, faster than any likely aircraft.`,
           ),
         );
-      } else if (kt < minKt && nm > minDistance) {
+      } else if (tooSlow) {
         out.push(
           finding(
             'implausible-duration',
             'warning',
             [entry.id],
             [...fields, 'from', 'to'],
-            `${Math.round(nm)} NM from ${where} in ${hours(total)} implies only ${Math.round(kt)} kt, slower than an aircraft can fly.`,
+            `${Math.round(nm)} NM from ${where} in ${hours(total)} implies only ${Math.round(kt)} kt, far slower than this aircraft flies.`,
           ),
         );
       }

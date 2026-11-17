@@ -160,7 +160,7 @@ describe('implausible-duration for jets', () => {
       KBBB: { ident: 'KBBB', lat: 32, lon: -106, tz: 'UTC' },
     })[ident];
 
-  it('warns when a jet averages under 150 kt over a real distance', () => {
+  it('warns when a jet takes far longer than the distance explains', () => {
     const f = run(
       implausibleDuration,
       [makeEntry({ from: 'KAAA', to: 'KBBB', durations: { total: 354 } })],
@@ -168,6 +168,18 @@ describe('implausible-duration for jets', () => {
       { airports },
     );
     expect(f.map((x) => x.ruleId)).toEqual(['implausible-duration']);
+  });
+
+  it('is silent for a slow but ordinary jet block time', () => {
+    // 600 NM in 3.0 h is 200 kt block speed: long taxi or holding, not a typo.
+    expect(
+      run(
+        implausibleDuration,
+        [makeEntry({ from: 'KAAA', to: 'KBBB', durations: { total: 180 } })],
+        jet,
+        { airports },
+      ),
+    ).toEqual([]);
   });
 
   it('is silent for a normal jet block time', () => {
