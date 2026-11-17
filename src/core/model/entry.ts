@@ -79,12 +79,10 @@ export interface CrewMember {
 export type CustomValue = number | boolean | string;
 
 export interface Landings {
-  /** All day landings, full-stop and touch-and-go. */
-  day: number;
-  /** All night landings, full-stop and touch-and-go. */
-  night: number;
   dayFullStop: number;
   nightFullStop: number;
+  dayTouchAndGo: number;
+  nightTouchAndGo: number;
 }
 
 export interface Entry {
@@ -149,4 +147,12 @@ export interface Entry {
 
 export function zeroDurations(): Durations {
   return Object.fromEntries(DURATION_FIELDS.map((f) => [f, 0])) as Durations;
+}
+
+export function totalLandings(l: Landings): number {
+  return l.dayFullStop + l.nightFullStop + l.dayTouchAndGo + l.nightTouchAndGo;
+}
+
+export function nightLandings(l: Landings): number {
+  return l.nightFullStop + l.nightTouchAndGo;
 }
