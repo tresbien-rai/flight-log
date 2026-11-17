@@ -550,7 +550,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 3 are done.
+Milestones 0 to 3 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1).
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -570,6 +570,14 @@ Milestones 0 to 3 are done.
 Milestones 1–3 need no UI and are well-specified, test-driven work, which suits delegation to cheaper models with review. Milestones 5 and 9 carry the design risk and need the most attention.
 
 ---
+
+### 11.1 The first screens (milestone 4)
+
+- **Books.** Each import is held as its own book (`logten`, `foreflight`; `main` stays hidden until it exists). The header's book switcher offers the books that exist and remembers the choice in the store's settings. Importing a file for an app that already has a book replaces it, after confirmation.
+- **Logbook.** A virtualised ledger grouped by month, built to read like a paper logbook page: shared column grid, stronger vertical rules between column groups, and a pinned totals row at the foot. The total column adds flight time only; simulator and ground sessions show their session length (muted, dotted underline, "Sim" / "Ground" in the rule column) but are not flight time. Columns drop progressively as the ledger narrows.
+- **Filters** live in the URL query string (`q`, `rule`, `kind`, `type`, `from`, `to`, `findings`, `order`), so they survive reload and Back/Forward. "Other" covers Part 135 and other rules.
+- **Entry detail** is a side pane at 1000 px and wider and a full-screen sheet below; `#/entry/:id` deep-links to it. Findings are listed first because they are what an audit looks for.
+- Validation runs once per book load, after first paint; the totals row says "checking findings…" until it finishes.
 
 ## 12. Open questions
 

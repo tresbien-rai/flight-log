@@ -1,0 +1,151 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+.app-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px 20px;
+  min-height: 52px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+
+.app-name {
+  font: 600 var(--fs-l) / 1 var(--font-ledger);
+  color: var(--ink);
+}
+
+.app-nav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 12px;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid transparent;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-nav a[aria-current='page'] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.book-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.book-switcher-label {
+  color: var(--muted);
+  font-size: var(--fs-s);
+}
+
+.book-switcher::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.book-select {
+  appearance: none;
+  min-height: var(--touch);
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--rule-group);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  color: var(--ink);
+  font: 500 var(--fs-m) / 1 var(--font-ui);
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Plain full-page screens (messages, import). They scroll themselves. */
+.screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 16px calc(24px + var(--safe-bottom));
+}
+
+.screen-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.screen-title {
+  font: 600 var(--fs-xl) / 1.2 var(--font-ui);
+}
+
+.section-title {
+  margin-top: 16px;
+  font: 600 var(--fs-l) / 1.3 var(--font-ui);
+}
+
+.lede {
+  color: var(--muted);
+}
+
+.empty {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.empty-title {
+  font: 600 var(--fs-xl) / 1.25 var(--font-ui);
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    padding: 0 12px;
+    gap: 4px 8px;
+  }
+  .app-name {
+    display: none;
+  }
+  .app-nav a {
+    padding: 0 10px;
+  }
+  .book-switcher-label {
+    display: none;
+  }
+}

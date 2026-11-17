@@ -1,0 +1,111 @@
+.filter-bar {
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+
+.filter-search {
+  display: flex;
+  gap: 8px;
+  flex: 0 1 280px;
+  min-width: 200px;
+}
+
+.filter-search .input {
+  flex: 1;
+  width: 100%;
+}
+
+.filter-expand {
+  display: none;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* A row of toggle buttons that reads as one control. */
+.toggle-group {
+  display: inline-flex;
+}
+
+.toggle-group .btn {
+  border-radius: 0;
+  margin-left: -1px;
+  padding: 0 12px;
+}
+
+.toggle-group .btn:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+  margin-left: 0;
+}
+
+.toggle-group .btn:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.toggle-group .btn[aria-pressed='true'] {
+  position: relative;
+  z-index: 1;
+}
+
+.quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.date-range {
+  display: flex;
+  gap: 12px;
+}
+
+.date-range .field {
+  flex: 1;
+}
+
+.notice {
+  flex: none;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  color: var(--warning);
+}
+
+@media (max-width: 899px) {
+  .filter-search {
+    flex: 1 1 100%;
+  }
+  .filter-expand {
+    display: inline-flex;
+    flex: none;
+  }
+  .filter-controls {
+    display: none;
+    width: 100%;
+  }
+  .filter-bar--open .filter-controls {
+    display: flex;
+  }
+  /* Panels open inline under the bar, across its width. */
+  .popover {
+    position: static;
+  }
+  .popover-panel {
+    left: 12px;
+    right: 12px;
+    top: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}

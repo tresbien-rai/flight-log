@@ -1,0 +1,52 @@
+/* Design tokens. Light is the default; the dark scheme follows the device (for night use). */
+:root {
+  color-scheme: light dark;
+
+  --paper: #f2f5f1;
+  --surface: #fbfcfa;
+  --ink: #17231e;
+  --muted: #5b6a62;
+  --rule: #cbd6ce;
+  /* Vertical rules between column groups: a little stronger than the row rules. */
+  --rule-group: #9aaba0;
+  --accent: #1e5c48;
+  --on-accent: #fbfcfa;
+  --select-bg: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  --rule-121: #2d4c7c;
+  --warning: #a8590a;
+  --error: #9e2b2b;
+
+  --font-ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-ledger: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+
+  --fs-s: 13px;
+  --fs-m: 15px;
+  --fs-l: 17px;
+  --fs-xl: 22px;
+
+  --row-h: 40px;
+  --touch: 44px;
+  --radius: 4px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0f1714;
+    --surface: #141e1a;
+    --ink: #dde6e0;
+    --muted: #8fa097;
+    --rule: #25322c;
+    --rule-group: #3d5046;
+    --accent: #74c4a2;
+    --on-accent: #0f1714;
+    --select-bg: color-mix(in srgb, var(--accent) 10%, var(--surface));
+    --rule-121: #8fb0e6;
+    --warning: #e0a050;
+    --error: #ee8c8c;
+  }
+}

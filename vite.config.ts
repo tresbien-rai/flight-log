@@ -20,7 +20,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png'],
       // The airport table is one ~3 MB chunk and must be available offline.
-      workbox: { maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 },
+      // Fonts are bundled (never fetched from a CDN), so woff2 must be precached too.
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
       manifest: {
         name: 'Flight Log',
         short_name: 'Flight Log',
@@ -28,8 +32,8 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         scope: '/',
-        theme_color: '#1d4ed8',
-        background_color: '#1d4ed8',
+        theme_color: '#1E5C48',
+        background_color: '#F2F5F1',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -38,7 +42,25 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'scripts/**/*.test.ts'],
-    environment: 'node',
+    // Core and pure-function tests run in plain Node; only component tests get a DOM.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'app',
+          environment: 'jsdom',
+          include: ['src/app/**/*.test.tsx'],
+          setupFiles: ['src/app/test/setup.ts'],
+        },
+      },
+    ],
   },
 });
