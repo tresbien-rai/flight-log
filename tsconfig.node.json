@@ -6,7 +6,13 @@
     "outDir": "./node_modules/.tmp/tsc-node",
     "tsBuildInfoFile": "./node_modules/.tmp/tsc-node.tsbuildinfo"
   },
-  "include": ["vite.config.ts", "eslint.config.js", "scripts", "src/core/**/*.test.ts"],
+  "include": [
+    "vite.config.ts",
+    "eslint.config.js",
+    "scripts",
+    "src/core/**/*.test.ts",
+    "src/core/airports/airports.data.json"
+  ],
   "references": [
     {
       "path": "./tsconfig.core.json"

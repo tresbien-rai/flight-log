@@ -4,3 +4,4 @@ dev-dist
 coverage
 data
 package-lock.json
+src/core/airports/airports.data.json

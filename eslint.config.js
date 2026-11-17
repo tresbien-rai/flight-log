@@ -4,7 +4,16 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'coverage', 'data', 'node_modules'] },
+  {
+    ignores: [
+      'dist',
+      'dev-dist',
+      'coverage',
+      'data',
+      'node_modules',
+      'src/core/airports/airports.data.json',
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
