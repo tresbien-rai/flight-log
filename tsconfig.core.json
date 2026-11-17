@@ -6,5 +6,6 @@
     "outDir": "./node_modules/.tmp/tsc-core",
     "tsBuildInfoFile": "./node_modules/.tmp/tsc-core.tsbuildinfo"
   },
-  "include": ["src/core"]
+  "include": ["src/core"],
+  "exclude": ["src/core/**/*.test.ts"]
 }

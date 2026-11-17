@@ -153,8 +153,8 @@ describe('parseApproachCell', () => {
     expect(r?.problems).toEqual(['bad-runway']);
   });
   it('joins several note fragments with "; "', () => {
-    const r = parseApproachCell('1;Weird;A;KSEA;extra');
-    expect(r?.approach.note).toBe('Weird; A; extra');
+    const r = parseApproachCell('1;Weird;99;KSEA;extra');
+    expect(r?.approach.note).toBe('Weird; 99; extra');
     expect(r?.problems).toEqual(['unknown-approach-type', 'bad-runway']);
   });
   it('handles the position-shifted form', () => {
@@ -186,5 +186,27 @@ describe('parseApproachCell', () => {
   });
   it('drops a LOCAL airport', () => {
     expect(parseApproachCell('1;ILS;28L;local')?.approach.airport).toBeUndefined();
+  });
+});
+
+describe('parseApproachCell runway variants', () => {
+  it('treats a lone letter as a circling-only procedure', () => {
+    expect(parseApproachCell('1;VOR;A;KABC')).toEqual({
+      count: 1,
+      approach: { type: 'VOR', airport: 'KABC', circleToLand: true, note: '-A' },
+      problems: [],
+    });
+  });
+
+  it('reads the runway after a procedure variant letter', () => {
+    expect(parseApproachCell('1;RNAV (GPS);Z 24;KABC')).toEqual({
+      count: 1,
+      approach: { type: 'RNAV-GPS', runway: '24', airport: 'KABC', note: 'Z 24' },
+      problems: [],
+    });
+  });
+
+  it('still reports a runway it cannot read', () => {
+    expect(parseApproachCell('1;ILS;37;KABC')?.problems).toEqual(['bad-runway']);
   });
 });

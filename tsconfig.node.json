@@ -6,6 +6,10 @@
     "outDir": "./node_modules/.tmp/tsc-node",
     "tsBuildInfoFile": "./node_modules/.tmp/tsc-node.tsbuildinfo"
   },
-  "include": ["vite.config.ts", "eslint.config.js", "scripts"],
-  "references": [{ "path": "./tsconfig.core.json" }]
+  "include": ["vite.config.ts", "eslint.config.js", "scripts", "src/core/**/*.test.ts"],
+  "references": [
+    {
+      "path": "./tsconfig.core.json"
+    }
+  ]
 }

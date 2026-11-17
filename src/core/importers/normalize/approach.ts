@@ -125,11 +125,24 @@ export function parseApproachCell(cell: string): ParsedApproach | undefined {
   }
 
   let runway: string | undefined;
+  let circlingOnly = false;
   if (runwayText !== undefined) {
     runway = normalizeRunway(runwayText);
     if (runway === undefined) {
-      problems.push('bad-runway');
-      notes.push(runwayText);
+      const variant = /^([A-Z])(?:\s+(.+))?$/i.exec(runwayText);
+      const rest = variant?.[2] === undefined ? undefined : normalizeRunway(variant[2]);
+      if (variant && variant[2] === undefined) {
+        // A lone letter is a circling-only procedure (`VOR-A`): it has no runway.
+        circlingOnly = true;
+        notes.push(`-${variant[1]!.toUpperCase()}`);
+      } else if (rest !== undefined) {
+        // A procedure variant letter before the runway (`Z 24`).
+        runway = rest;
+        notes.push(runwayText);
+      } else {
+        problems.push('bad-runway');
+        notes.push(runwayText);
+      }
     }
   } else if (typeText !== undefined) {
     const m = /\bRWY\s*(\d{1,2}\s*[LCR]?)(?![A-Z0-9])/i.exec(typeText);
@@ -138,6 +151,7 @@ export function parseApproachCell(cell: string): ParsedApproach | undefined {
 
   const approach: Approach = { type };
   if (runway !== undefined) approach.runway = runway;
+  if (circlingOnly) approach.circleToLand = true;
   const ident = normalizeAirport(airportText).ident;
   if (ident !== undefined) approach.airport = ident;
 

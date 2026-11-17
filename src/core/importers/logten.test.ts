@@ -1,20 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { importLogTen } from './logten';
 import type { ImportResult, SourceRecord } from './types';
 
-// tsconfig.core has no Node types, so reach Node through the global instead of importing it.
-interface NodeProcess {
-  env: Record<string, string | undefined>;
-  cwd(): string;
-  getBuiltinModule(id: string): unknown;
-}
-const nodeProcess = (globalThis as unknown as { process: NodeProcess }).process;
-const fs = nodeProcess.getBuiltinModule('node:fs') as {
-  readFileSync(path: string, encoding: 'utf8'): string;
-};
-const readText = (path: string): string => fs.readFileSync(path, 'utf8');
+const nodeProcess = process;
+const readText = (path: string): string => readFileSync(path, 'utf8');
 
-const fixtureText = readText(`${nodeProcess.cwd()}/fixtures/logten/sample.txt`);
+const fixtureText = readFileSync(
+  new URL('../../../fixtures/logten/sample.txt', import.meta.url),
+  'utf8',
+);
 const fixture = importLogTen(fixtureText);
 
 /** Small inline export: header names get the stray leading space LogTen puts on most of them. */
