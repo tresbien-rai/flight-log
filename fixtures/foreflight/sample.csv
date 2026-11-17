@@ -1,0 +1,34 @@
+ForeFlight Logbook Import,This row is required for importing into ForeFlight. Do not delete or modify.,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Aircraft Table,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+AircraftID,TypeCode,Year,Make,Model,GearType,EngineType,equipType (FAA),aircraftClass (FAA),complexAircraft (FAA),taa (FAA),highPerformance (FAA),pressurized (FAA),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N101AB,C172,2004,Cessna,172S Skyhawk,fixed_tricycle,Piston,aircraft,airplane_single_engine_land,,TRUE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N202CD,P28R,,Piper,PA-28R-201 Arrow III,retractable_tricycle,Piston,aircraft,airplane_single_engine_land,TRUE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N303EF,BE76,,Beechcraft,76 Duchess,fixed_tricycle,Piston,aircraft,airplane_multi_engine_land,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N404GH,CRJ7,,Canadair,CL-600 Regional Jet CRJ-700,retractable_tricycle,Turbofan,aircraft,airplane_multi_engine_land,,,,TRUE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N404GH ,CRJ7,,Canadair,CL-600 Regional Jet CRJ-700,retractable_tricycle,Turbofan,aircraft,airplane_multi_engine_land,,,,TRUE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N505JK,C182,,Cessna,182T Skylane,fixed_tricycle,Piston,aircraft,airplane_single_engine_land,,,TRUE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N707PQ,,1985,Example Aero,Taildragger 1,fixed_conventional,Piston,aircraft,airplane_single_engine_land,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+N606LM,C172,,Cessna,172R Skyhawk,fixed_tricycle,Piston,aircraft,airplane_single_engine_land,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+SIM-AATD-1,C172,,,,,,aatd,airplane_single_engine_land,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+FFS-EX-100,CRJ2,,,,,,ffs,airplane_multi_engine_land,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Flights Table , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ,Deprecated: Do not edit manually,Deprecated: Do not edit manually,Deprecated: Do not edit manually,Deprecated: Do not edit manually,Deprecated: Do not edit manually,,,,,,,
+Date,AircraftID,From,To,Route,TimeOut,TimeOff,TimeOn,TimeIn,OnDuty,OffDuty,TotalTime,PIC,SIC,Night,Solo,CrossCountry,PICUS,MultiPilot,IFR,Examiner,NVG,NVG Ops,Distance,ActualInstrument,SimulatedInstrument,HobbsStart,HobbsEnd,TachStart,TachEnd,Holds,Approach1,Approach2,Approach3,Approach4,Approach5,Approach6,DualGiven,DualReceived,SimulatedFlight,GroundTraining,GroundTrainingGiven,InstructorName,InstructorComments,Person1,Person2,Person3,Person4,Person5,Person6,PilotComments,Flight Review (FAA),IPC (FAA),Checkride (FAA),FAA 61.58 (FAA),NVG Proficiency (FAA),DayTakeoffs,DayLandingsFullStop,NightTakeoffs,NightLandingsFullStop,AllLandings,[Hours]DG-CPL,[Hours]DG-IRA,[Hours]DG-PPL,[Toggle]Flag,[Toggle]Part 121,[Numeric]Passenger Count,[Hours]XC (50NM)
+2024-03-01,N101AB,KAAA,LOCAL,,,,,,,,1.2,1.2,0.0,0.0,0.0,0.0,,,,,,,,0.0,0.0,,,,,0,,,,,,,1.2,0.0,0.0,0.0,,Pat Example,,Sam Student;Student;sam.student@example.com;+1 555 0101,,,,,,Pattern work.,,,,,,3,2,0,0,3,,,1.2,,,,0.0
+2024-03-02,N101AB,KAAA,KBBB, KAAA KBBB,,,,,,,1.5,1.5,,0.3,,1.5,,,,,,,,0.4,0.5,,,,,1,2;ILS OR LOC RWY 24R;;KBBB;;,1;RNAV (GPS) Y RWY 06;;KBBB;Straight-in;,"1;VOR;31;KBBB;
+Partial Panel;",1;ILS;24;KBBB;;CIRCLE,,,,,,,,,,Sam Student;Student;;,Lee Pilot;Safety Pilot;;,,,,,"Line one.
+Line two.  ",,,,,,1,1,0,1,3,,,,true,,2.000000,1.5
+2024-03-03,N202CD,KBBB,LOCAL,,,,,,,,0.0,0.0,,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Pat Example;PIC;pat.example@example.com;+1 555 0100,Chris Check;Examiner;;,,,,,Zero-time row.,,,,,,,,,,,,,,,,,
+2024-03-04,N202CD,KBBB,KCCC,,,,,,,,2.1,2.1,,1.0,2.1,2.1,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,1,0,0,1,1,,,,false,,,
+2024-03-05,N303EF,KCCC,KCCC,,,,,,,,1.0,1.0,,,,,,,,,,,,,,,,,,,,,,,,,,1.0,,,,Dana Instructor,,Dana Instructor;Instructor;dana.i@example.com;,Jo Passenger;Passenger;;,Pat Example;PIC;;,,,,,,,,,,,,,,,,,,,,,
+2024-03-06,N404GH,KDDD,KEEE,,13:40,13:52,15:30,15:41,12:30,16:30,2.0,0.0,2.0,,,2.0,,,,,,,,0.3,,,,,,,,,,,,,,,,,,,,Robin Captain;PIC;;,Pat Example;SIC;;,,,,,,,,,,,0,0,0,0,0,,,,,true,61.000000,2.0
+2024-03-06,N404GH ,KEEE,KDDD,,23:50,23:58,01:20,01:31,,,1.7,,1.7,1.7,,1.7,,,,,,,,,,,,,,,,,,,,,,,,,,,,Pat Example;SIC;;,Robin Captain;PIC;;,,,,,,,,,,,0,0,1,1,1,,,,,true,0.000000,
+2024-03-07,N404GH,KDDD,KEEE,,00:00,,,00:00,,,0.8,,0.8,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Robin Captain;PIC;;,,,,,,,,,,,,,,,,,,,,,,,
+2024-03-08,N505JK,KAAA,LOCAL,,,,,,,,1.1,1.1,,0.0,,0.0,,,,,,,,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,,,,,4,1,,,4,,,,,,,
+2024-03-09,N707PQ,KAAA,KAAA,,,,,,,,0.6,0.6,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Tailwheel practice.,,,,,,2,2,,,2,,,,,,,
+2024-03-10,SIM-AATD-1,,,,,,,,,,0.0,0.0,,,,,,,,,,,,,1.5,,,,,,3;ILS;24;KBBB;;,,,,,,,,1.5,,,,,Dana Instructor;Instructor;;,,,,,,Procedures trainer.,,,,,,,,,,,,,,,,,
+2024-03-11,FFS-EX-100,,,,,,,,,,,,,,,,,,,,,,,,0.5,,,,,,,,,,,,,,4.0,,,,,,,,,,,,,,TRUE,,,3,6,,,6,,,,,,,
+2024-03-12,,,,,,,,,,,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1.5,,Dana Instructor,,,,,,,,Ground school.,,,,,,,,,,,,,,,,,
+2024-03-15,N606LM,KAAA,KAAA,,,,,,,,0.9,0.9,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.0,,,,0.0
+2024-03-16,N101AB,KAAA,KBBB,,,,,,,,1.0,1.0,,,,,,,,,,,,,,,,,,,,,,,1;LOC/DME BC;;KBBB;;,,,,,,,,,,,,,,,Back course.,,,,,,,,,,,,,,,,,
