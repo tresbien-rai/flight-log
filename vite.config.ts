@@ -19,6 +19,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png'],
+      // The airport table is one ~3 MB chunk and must be available offline.
+      workbox: { maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 },
       manifest: {
         name: 'Flight Log',
         short_name: 'Flight Log',
