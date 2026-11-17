@@ -169,8 +169,13 @@ function scalar(
   return make(field, a, b, both(a, b));
 }
 
+/** Waypoints in order; `KAAA-KBBB`, `KAAA KBBB` and `kaaa, kbbb` are the same route. */
 function normRoute(s: string): string {
-  return s.replace(/\s+/g, ' ').trim().toUpperCase();
+  return s
+    .toUpperCase()
+    .split(/[\s\-–>,;]+/)
+    .filter((part) => part !== '')
+    .join(' ');
 }
 
 function normFlightNumber(s: string): string {
@@ -310,16 +315,25 @@ function peopleDiff(a: SourceRecord, b: SourceRecord): FieldDiff | undefined {
 
 // --- remarks ---------------------------------------------------------------------------------
 
+/** Case, punctuation and spacing do not make two remarks different. */
+function remarksKey(text: string | undefined): string {
+  return (text ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
 function remarksDiff(a: string | undefined, b: string | undefined): FieldDiff | undefined {
-  const na = (a ?? '').replace(/\s+/g, ' ').trim();
-  const nb = (b ?? '').replace(/\s+/g, ' ').trim();
+  if (a === b) return undefined;
+  const na = remarksKey(a);
+  const nb = remarksKey(b);
   // Lengths only, never the text.
   const la = a?.length;
   const lb = b?.length;
-  if (na === nb) {
-    return a === b ? undefined : make('remarks', la, lb, { class: 'equivalent' });
-  }
-  if (na === '') return make('remarks', la, lb, missing('missing-a'));
-  if (nb === '') return make('remarks', la, lb, missing('missing-b'));
+  if (na === nb) return make('remarks', la, lb, { class: 'equivalent' });
+  // One side saying everything the other says, and more, is the other side missing something.
+  const within = (part: string, whole: string) => part === '' || ` ${whole} `.includes(` ${part} `);
+  if (within(na, nb)) return make('remarks', la, lb, missing('missing-a'));
+  if (within(nb, na)) return make('remarks', la, lb, missing('missing-b'));
   return make('remarks', la, lb, { class: 'real' });
 }

@@ -341,8 +341,13 @@ function settleEquivalent(
   }
 }
 
-function bulkSide(rule: BulkDecision, diffs: readonly FieldDiff[]): Side | undefined {
+function bulkChoice(
+  rule: BulkDecision,
+  field: DecisionField,
+  diffs: readonly FieldDiff[],
+): Side | 'both' | undefined {
   if (rule.choice === 'a' || rule.choice === 'b') return rule.choice;
+  if (rule.choice === 'both') return field === 'people' || field === 'remarks' ? 'both' : undefined;
   if (rule.choice === 'present') {
     if (rule.pattern === 'missing-a') return 'b';
     if (rule.pattern === 'missing-b') return 'a';
@@ -461,13 +466,15 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
       } else if (cls.class === 'equivalent') {
         settleEquivalent(record, b, field, diffs);
         resolved.by = 'equivalent';
-      } else if (cls.pattern) {
-        const rule = bulk.get(`bulk:${cls.pattern}:${field}`) ?? bulk.get(`bulk:${cls.pattern}:*`);
-        const side = rule ? bulkSide(rule, diffs) : undefined;
-        if (side) {
-          copyField(record, side === 'a' ? a : b, field);
+      } else {
+        // A rule for real differences always names its field.
+        const rule = cls.pattern
+          ? (bulk.get(`bulk:${cls.pattern}:${field}`) ?? bulk.get(`bulk:${cls.pattern}:*`))
+          : bulk.get(`bulk:real:${field}`);
+        const choice = rule ? bulkChoice(rule, field, diffs) : undefined;
+        if (choice && applyChoice(record, a, b, field, choice)) {
           resolved.by = 'bulk';
-          resolved.choice = side;
+          resolved.choice = choice;
         }
       }
       if (resolved.by === 'undecided') open.fields++;

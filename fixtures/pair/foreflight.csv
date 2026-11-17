@@ -8,8 +8,8 @@ SIM-AATD-1,C172,,,,,,aatd,airplane_single_engine_land,,,,,
 ,,,,,,,,,,,,,
 Flights Table,,,,,,,,,,,,,
 Date,AircraftID,From,To,TimeOut,TimeIn,TotalTime,PIC,SIC,Night,SimulatedFlight,PilotComments,DayTakeoffs,DayLandingsFullStop
-2024-03-01,N101AB,KAAA,KBBB,,,1.3,1.3,,,,Rounding only.,1,1
-2024-03-02,N101AB,KBBB,KAAA,,,1.5,1.5,,0.3,,Night differs.,1,1
-2024-03-04,N414GH,KDDD,KEEE,13:40,15:41,2.0,,2.0,,,Tail differs.,,
-2024-03-05,N101AB,KAAA,KAAA,,,1.0,1.0,,,,Identical.,1,1
-2024-03-10,SIM-AATD-1,,,,,,,,,1.5,Procedures trainer.,,
+2024-03-01,N101AB,KAAA,KBBB,,,1.3,1.3,,,,"""Rounding only.""",1,1
+2024-03-02,N101AB,KBBB,KAAA,,,1.5,1.5,,0.3,,"""Night differs.""",1,1
+2024-03-04,N414GH,KDDD,KEEE,13:40,15:41,2.0,,2.0,,,"""Tail differs.""",,
+2024-03-05,N101AB,KAAA,KAAA,,,1.0,1.0,,,,"""Identical.""",1,1
+2024-03-10,SIM-AATD-1,,,,,,,,,1.5,"""Procedures trainer.""",,
