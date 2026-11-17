@@ -39,6 +39,10 @@ export interface ToLogbookOptions {
    * exports have been observed to use the UTC date. Default `utc`.
    */
   dateBasis?: 'utc' | 'local';
+  /** Id for the entry made from a record. Default `<source>:<line>`. Must be unique. */
+  entryId?: (rec: SourceRecord) => string;
+  /** Recorded as each entry's `source.batchId`. Default: the import's source. */
+  batchId?: string;
 }
 
 const DAY = 24 * 60;
@@ -317,7 +321,7 @@ export function toLogbook(
   };
 
   const entries: Entry[] = result.records.map((rec) => {
-    const id = `${rec.source}:${rec.line}`;
+    const id = options.entryId?.(rec) ?? `${rec.source}:${rec.line}`;
     const note = (code: string, message: string) =>
       notes.push({ code, message, line: rec.line, entryId: id });
 
@@ -429,7 +433,7 @@ export function toLogbook(
       crew,
       custom: { ...rec.custom },
       remarks: rec.remarks,
-      source: { kind: 'import', batchId: result.source },
+      source: { kind: 'import', batchId: options.batchId ?? result.source },
       acknowledged: [],
       createdAt: EPOCH,
       updatedAt: EPOCH,

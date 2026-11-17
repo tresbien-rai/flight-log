@@ -288,7 +288,7 @@ function pilotFlyingDiff(a: boolean | undefined, b: boolean | undefined): FieldD
 // --- people ----------------------------------------------------------------------------------
 
 /** `Example; Pat`, `Example, Pat`, `Pat Example` and `pat  example` all give `pat example`. */
-function nameKey(name: string): string {
+export function nameKey(name: string): string {
   let s = name.replace(/\./g, '');
   const i = s.search(/[;,]/);
   if (i >= 0) s = `${s.slice(i + 1)} ${s.slice(0, i)}`;

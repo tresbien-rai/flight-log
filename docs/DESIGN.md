@@ -452,6 +452,17 @@ This is the first thing to be built, because it produces the clean logbook every
 
 Each resolution is stored against a fingerprint of the two raw rows. Importing a fresher export three months later replays every earlier decision automatically and asks only about what is new or changed. This is what makes "run alongside for a while" workable: the audit becomes a five-minute monthly check instead of a side-by-side read.
 
+How this is built (`src/core/reconcile/types.ts` holds the contract, `resolve.ts` the logic):
+
+- **A fingerprint** is a hash of a row's source and every non-empty cell, so it does not depend on the row's position in the file or on how the importer reads it.
+- **Three kinds of decision.** A _pair_ decision holds the choice per field for one pair of rows (that side, the other side, both for crew and remarks, or a typed value), and whether the pairing itself is confirmed, rejected, or was made by hand. An _orphan_ decision keeps or drops a row that is in one app only. A _bulk_ decision is one rule for a whole pattern ("rounding: keep the more precise", "blank on one side: take the value that is there"), optionally limited to one field. A pair's own choice beats a field's rule, which beats a pattern's rule.
+- **Nothing is settled silently.** Only _equivalent_ differences resolve without a decision. Rounding and blank-on-one-side differences wait for a bulk rule. Until a field is decided, the merged entry shows LogTen's value (side `a`) and the field is counted as open; undecided orphans are kept. The merged logbook is therefore always complete, and the open counts say whether it is final.
+- **Each field choice remembers the difference it was made on.** If either app's value for that field later changes, the choice no longer applies and the field is asked about again.
+- **Replay survives an edit to one row.** When one row of a pair has been edited (so its fingerprint changed) and the other has not, the earlier decision still applies to the fields whose difference is unchanged. Decisions that match nothing are reported as stale, not deleted.
+- **Landing counts are decided as one unit**, because the two apps count landings differently and their individual numbers cannot be mixed.
+- **The merged logbook** is rebuilt from the two stored files plus the decisions every time (`toMergedLogbook`). Its entry ids come from the LogTen row's fingerprint, so an entry keeps its id (and its acknowledged findings) across rebuilds until that row is edited in LogTen.
+- **The source files are stored as text** in the browser and parsed again for each audit, so an importer fix reaches the audit without re-importing.
+
 ### 7.3 The audit screen
 
 A table of pairs, filterable by difference class, field, year, aircraft type and rule. Selecting a pair shows the two rows side by side with differing fields highlighted, and the validation findings for each candidate value. A summary at the top shows grand totals per source and the running total of the merged logbook, so the pilot can see the numbers converge.
@@ -462,7 +473,7 @@ Neither source records the rule reliably. On import, the app proposes one per en
 
 ### 7.5 Aircraft on import
 
-Aircraft from both sources are merged into airframes by normalised tail. Type spellings are mapped onto the built-in type list once ("CL-600 Regional Jet CRJ-700", "Regional Jet CRJ-700" → CRJ-700). Conversions are not in either export and are entered afterwards (§4.3).
+Aircraft from both sources are merged into airframes by normalised tail (built: LogTen's description of an aircraft is used and ForeFlight fills in what LogTen leaves blank, so a shared tail gets LogTen's type code; the mapping onto a built-in type list is not built). Type spellings are mapped onto the built-in type list once ("CL-600 Regional Jet CRJ-700", "Regional Jet CRJ-700" → CRJ-700). Conversions are not in either export and are entered afterwards (§4.3).
 
 ### 7.6 Privacy of real data
 
@@ -550,7 +561,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1).
+Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1). Milestone 5 is under way: the decision model, the resolve step and their storage exist (§7.2); the audit screen does not yet.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

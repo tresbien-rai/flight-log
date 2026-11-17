@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: end of milestone 4.
+Last updated: milestone 5 in progress (decision model and resolve step done, audit screen not started).
 
 ## State
 
@@ -14,13 +14,13 @@ Last updated: end of milestone 4.
 | 2 Matching + diff           | done                         |
 | 3 Validation engine         | done                         |
 | 4 App shell + local storage | done, deployed               |
-| 5 Audit UI                  | **next**                     |
+| 5 Audit UI                  | **in progress** (see below)  |
 | 6–10                        | not started (see DESIGN §11) |
 
-- **Branch:** all work is on `claude/clever-gauss-07u08g`. The repository has no `main` branch
-  yet, so there has never been a pull request. Creating `main` from this branch and switching
-  Railway to it is a sensible first step for whoever has permission to push it.
-- **Hosting:** <https://web-production-30875dbb.up.railway.app>. Railway project "Flight Log", service `web`, built from the branch above on every
+- **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
+  `main` by pull request. GitHub's default branch may still be the first working branch
+  (`claude/clever-gauss-07u08g`); switch it to `main` in the repository settings.
+- **Hosting:** <https://web-production-30875dbb.up.railway.app>. Railway project "Flight Log", service `web`, built from `main` on every
   push. `npm run build` then `npm start` (a static file server over `dist/`). Nothing on
   Railway stores logbook data; it lives in the browser's IndexedDB.
 - **Checks:** `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`,
@@ -32,15 +32,15 @@ Last updated: end of milestone 4.
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/core/model`      | Canonical types: `Entry`, `Airframe`, `AircraftType`, `Logbook`                                                                               |
 | `src/core/importers`  | `importLogTen`, `importForeFlight` → `SourceRecord`s; `toLogbook` → canonical entries; `presets.ts` holds this pilot's custom-column mappings |
-| `src/core/reconcile`  | `matchRecords` (pairing two imports) and `diffPair` (field-by-field comparison)                                                               |
+| `src/core/reconcile`  | `matchRecords` (pairing two imports), `diffPair` (field-by-field comparison), `resolve` (apply decisions), `toMergedLogbook`                  |
 | `src/core/validation` | 35 rules, `validate`, per-source default rule switches                                                                                        |
 | `src/core/query`      | `indexLogbook`, `filterEntries`, `sortEntries`, `totalEntries`, `groupEntries`                                                                |
 | `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
 | `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers                                                                                          |
-| `src/storage`         | Dexie database, `LogbookStore`, `importFile`, lazy airport loader                                                                             |
+| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions), `importFile`, `loadAudit` / `writeMainBook`, lazy airport loader             |
 | `src/app`             | React screens: shell, import, ledger, entry detail                                                                                            |
 | `scripts`             | `profile`, `audit`, `validate`, `build:airports` command-line tools                                                                           |
-| `fixtures`            | Synthetic exports that reproduce each file quirk                                                                                              |
+| `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
 | `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
 
 Contracts live in each folder's `types.ts`. They were written first and the implementations
@@ -93,7 +93,9 @@ App:
 - Going to Import and back loses the current filters.
 - In the phone-size entry sheet, Escape and the arrow keys do nothing.
 - Entry detail is read-only. There is no way to create, edit or delete an entry.
-- `main` ("My logbook") cannot be created yet; only the two imported books exist.
+- `main` ("My logbook") can be built by `writeMainBook`, but no screen calls it yet.
+- Books imported before milestone 5 have no stored source file. The audit needs both files
+  imported again once (`loadAudit` reports which are missing).
 - Column mappings for custom fields are hard-coded in `src/core/importers/presets.ts`
   for this one pilot. They need to become a setting before anyone else can use the app.
 - The airport table is one 3 MB chunk (1 MB compressed). Dropping names or the smallest
@@ -104,7 +106,12 @@ App:
 Core:
 
 - The audit and validation command-line reports are the only place differences are shown.
-  There is no stored record of a decision yet (DESIGN §7.2).
+  Decisions can be stored and applied (DESIGN §7.2) but there is no screen to make them.
+- **The new resolve step has only been run on synthetic fixtures.** The real exports were not
+  available in the session that built it. First thing to check with them: that a row's
+  fingerprint is the same in two exports taken at different times (a LogTen column that
+  changes on every export, such as a running total, would break replay), and how many fields
+  stay open after the two obvious bulk rules.
 - The operating rule defaults to Part 91 where the source does not state it; the inference
   and confirmation step (DESIGN §7.4) is not built. About 120 airline legs are unmarked.
 - Night time is taken from the source as typed. Computing it from times and position
@@ -112,26 +119,37 @@ Core:
 - `totalSource` is always `typed` after import, even when clock times agree with the total.
 - Aircraft types are created one per source type code (`C172`, `C-172S`). Mapping both apps'
   spellings onto one type list (DESIGN §7.5) is not built, so the two books do not share types.
+  The merged logbook uses LogTen's type code wherever LogTen knows the tail.
 - People are keyed by a normalised name; near-duplicates are not merged.
 - No export (DESIGN §9), no experience report (§8), no Drive sync (§3.3).
 - `npm audit` reports vulnerabilities in dev dependencies; not triaged.
 
-## Milestone 5: where to start
+## Milestone 5: where it stands
 
 Goal: resolve the differences between the two imported books in the app and produce `main`.
-DESIGN §7 is the specification. A suggested order:
+DESIGN §7 is the specification; §7.2 describes what is built.
 
-1. **Decide the stored shape of a decision** (contract first): keyed by a fingerprint of the
-   two raw rows, holding the chosen value per field, plus bulk decisions per pattern
-   ("rounding: keep the more precise"). Add a Dexie table and store methods.
-2. **A pure `resolve` step in core**: pairs + decisions → canonical entries for `main`, with
-   the list of what is still undecided. Test it hard; it is the heart of the milestone.
-3. **Type and aircraft mapping** between the two sources, since merged entries need one
-   aircraft list.
-4. **Operating-rule proposals** (DESIGN §7.4), grouped for bulk confirmation.
-5. **The audit screen**: summary with converging totals, a filterable list of pairs, a
-   side-by-side view with per-field choice, bulk actions, orphans (keep / drop / match by hand).
-   Re-importing a newer export must replay earlier decisions.
-6. Bring the 43 ForeFlight-only simulator sessions across as part of orphan handling.
+Done:
+
+1. **The stored shape of a decision** (`src/core/reconcile/types.ts`), a Dexie table for
+   decisions and one for the imported files' text, and the store methods.
+2. **The pure `resolve` step** (`resolve.ts`): pairs + decisions → merged rows, with what is
+   still open and which decisions went stale. `amendPairDecision` builds the decision to store
+   when the pilot changes something.
+3. **Merged aircraft list and merged logbook** (`merge.ts`), and the glue `loadAudit`,
+   `reresolve` and `writeMainBook` in `src/storage/audit.ts`.
+
+Next, in order:
+
+4. **The audit screen** (DESIGN §7.3): summary with converging totals, a filterable list of
+   pairs, a side-by-side view with per-field choice, bulk rules with a count of what each would
+   settle, pair confirmation, orphans (keep / drop / match by hand), a list of stale decisions.
+   Decide when `main` is written: suggested is on demand ("Build my logbook"), allowed while
+   things are open, with the open count shown on the book.
+5. **Operating-rule proposals** (DESIGN §7.4), grouped for bulk confirmation. Today a rule
+   stated by only one app is a blank-on-one-side difference and follows that bulk rule.
+6. **Type mapping** onto one type list (DESIGN §7.5).
+7. Run it all against the real exports and bring the 43 ForeFlight-only simulator sessions
+   across as kept orphans.
 
 Open questions for the pilot are listed in DESIGN §12.

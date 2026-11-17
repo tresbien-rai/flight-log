@@ -1,0 +1,6 @@
+flight_flightDate	flight_from	flight_to	flight_actualDepartureTime	flight_actualArrivalTime	flight_totalTime	flight_pic	flight_sic	flight_night	flight_ground	flight_dayTakeoffs	flight_dayLandings	flight_remarks	aircraft_aircraftID	aircraftType_type	aircraftType_make	aircraftType_model	aircraftType_selectedEngineType	aircraftType_selectedCategory	aircraftType_selectedAircraftClass
+2024-03-01	KAAA	KBBB			1.28	1.28				1	1	Rounding only.	N101AB	C-172S	Cessna	172S Skyhawk	Reciprocating	Airplane	Single-Engine Land
+2024-03-02	KBBB	KAAA			1.50	1.50		0.80		1	1	Night differs.	N101AB	C-172S	Cessna	172S Skyhawk	Reciprocating	Airplane	Single-Engine Land
+2024-03-04	KDDD	KEEE	13:40	15:41	2.02		2.02					Tail differs.	N404GH	CRJ-700	Canadair	CL-600 Regional Jet CRJ-700	Turbofan	Airplane	Multi-Engine Land
+2024-03-05	KAAA	KAAA			1.00	1.00				1	1	Identical.	N101AB	C-172S	Cessna	172S Skyhawk	Reciprocating	Airplane	Single-Engine Land
+2024-03-12									1.50			Ground school.							

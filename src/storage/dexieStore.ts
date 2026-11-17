@@ -1,5 +1,6 @@
 import type { Table } from 'dexie';
 import type { Logbook } from '@core/model';
+import { decisionKey } from '@core/reconcile';
 import { FlightLogDb, type Row } from './db';
 import { BOOK_IDS, type BookId, type LogbookStore } from './types';
 
@@ -103,10 +104,38 @@ export function createDexieStore(db: FlightLogDb = new FlightLogDb()): LogbookSt
     },
 
     async deleteBook(book) {
-      await db.transaction('rw', [...bookTables, db.books], async () => {
+      await db.transaction('rw', [...bookTables, db.books, db.sources], async () => {
         await clearBook(book);
         await db.books.delete(book);
+        if (book !== 'main') await db.sources.delete(book);
       });
+      announce();
+    },
+
+    async saveSourceFile(file) {
+      await db.sources.put(file);
+      announce();
+    },
+
+    loadSourceFile(source) {
+      return db.sources.get(source);
+    },
+
+    async listDecisions() {
+      return (await db.decisions.toArray()).map((row) => row.decision);
+    },
+
+    async putDecisions(decisions) {
+      if (decisions.length === 0) return;
+      await db.decisions.bulkPut(
+        decisions.map((decision) => ({ key: decisionKey(decision), decision })),
+      );
+      announce();
+    },
+
+    async removeDecisions(keys) {
+      if (keys.length === 0) return;
+      await db.decisions.bulkDelete([...keys]);
       announce();
     },
 

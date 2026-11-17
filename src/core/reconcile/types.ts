@@ -79,3 +79,142 @@ export interface PairDiff {
   /** Only fields that differ in some way, `equivalent` ones included. */
   diffs: FieldDiff[];
 }
+
+// ---------------------------------------------------------------------------------------------
+// Decisions and resolution. See docs/DESIGN.md §7.1 (stage 5) and §7.2.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A stable name for one raw row: a hash of its source and every non-empty cell. The same row
+ * in a later export of the same logbook has the same fingerprint; an edited row does not.
+ * Identical rows in one file are told apart by a `#2`, `#3`… suffix in file order.
+ */
+export type Fingerprint = string;
+
+export type Side = 'a' | 'b';
+
+/**
+ * What a decision is made about. Usually a diff field (`durations.night`, `tail`), but the
+ * landing counts are decided together as `landings`, because the two apps count landings
+ * differently and the individual numbers cannot be mixed.
+ */
+export type DecisionField = string;
+
+/**
+ * - `a` / `b`: that side's value.
+ * - `both`: `people` (union) and `remarks` (both texts) only.
+ * - `{ value }`: typed by the pilot, in the record's own units (minutes for durations and
+ *   clock times). Not available for `kind`, `localFlight`, `landings`, `approaches`, `people`.
+ */
+export type FieldChoice = Side | 'both' | { value: string | number | boolean };
+
+export interface FieldDecision {
+  choice: FieldChoice;
+  /**
+   * Signature of the difference the pilot was looking at (see `diffSignature`). The decision
+   * applies only while the difference is still that one, so a value corrected in either app
+   * is asked about again instead of being silently overridden.
+   */
+  seen: string;
+}
+
+/** Everything decided about one pair of rows. */
+export interface PairDecision {
+  kind: 'pair';
+  a: Fingerprint;
+  b: Fingerprint;
+  /**
+   * - `confirmed`: the matcher's less-than-exact pairing is right.
+   * - `rejected`: the matcher paired two different flights; treat both as unmatched.
+   * - `manual`: the pilot paired these two rows by hand.
+   */
+  match?: 'confirmed' | 'rejected' | 'manual';
+  fields: Record<DecisionField, FieldDecision>;
+  /** UTC ISO instant, supplied by the caller. */
+  decidedAt: string;
+}
+
+/** What to do with a row that exists in one app only. */
+export interface OrphanDecision {
+  kind: 'orphan';
+  side: Side;
+  record: Fingerprint;
+  action: 'keep' | 'drop';
+  decidedAt: string;
+}
+
+/**
+ * - `a` / `b`: always that side.
+ * - `more-precise`: for `rounding`, the value that is not a whole tenth of an hour.
+ * - `present`: for `missing-a` / `missing-b`, the side that has a value.
+ */
+export type BulkChoice = Side | 'more-precise' | 'present';
+
+/**
+ * One rule for every difference of a pattern, optionally limited to one field. A pair's own
+ * decision wins over a field's rule, which wins over the pattern's rule.
+ */
+export interface BulkDecision {
+  kind: 'bulk';
+  pattern: DiffPattern;
+  field?: DecisionField;
+  choice: BulkChoice;
+  decidedAt: string;
+}
+
+export type Decision = PairDecision | OrphanDecision | BulkDecision;
+
+/** How a field of a pair got its value. `undecided` fields provisionally use side `a`. */
+export type SettledBy = 'equivalent' | 'pair' | 'bulk' | 'undecided';
+
+export interface ResolvedField {
+  field: DecisionField;
+  /** The diffs behind it (one, except for `landings`). */
+  diffs: FieldDiff[];
+  class: DiffClass;
+  pattern?: DiffPattern;
+  by: SettledBy;
+  /** The concrete choice applied; absent when undecided. */
+  choice?: Side | 'both' | { value: string | number | boolean };
+}
+
+export interface ResolvedPair {
+  a: SourceRecord;
+  b: SourceRecord;
+  fa: Fingerprint;
+  fb: Fingerprint;
+  tier: MatchTier | 'manual';
+  /** `unconfirmed`: paired below the `exact` tier and not yet confirmed by the pilot. */
+  match: 'exact' | 'confirmed' | 'manual' | 'unconfirmed';
+  /** Every differing field, `equivalent` ones included, in diff order. */
+  fields: ResolvedField[];
+  /** The merged row. Carries side `a`'s `source`, `line` and `raw`. */
+  record: SourceRecord;
+  /** Id of the entry this pair becomes. */
+  entryId: string;
+  /**
+   * The stored decision that was applied, if any. It may have been made against an earlier
+   * version of one of the two rows; `amendPairDecision` re-keys it to the current rows.
+   */
+  decision?: PairDecision;
+}
+
+export interface ResolvedOrphan {
+  side: Side;
+  record: SourceRecord;
+  fingerprint: Fingerprint;
+  /** Undecided orphans are provisionally kept. */
+  action: 'keep' | 'drop' | 'undecided';
+  entryId: string;
+}
+
+export interface Resolution {
+  /** In the order of side `a`, hand-made pairs last. */
+  pairs: ResolvedPair[];
+  /** Side `a`'s first, each in file order. */
+  orphans: ResolvedOrphan[];
+  /** What is still to decide. All zero means the merged logbook is final. */
+  open: { matches: number; fields: number; orphans: number };
+  /** Decisions that applied to nothing in these two files (their rows changed or went). */
+  stale: Decision[];
+}

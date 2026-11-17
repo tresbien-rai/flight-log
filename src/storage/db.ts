@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { AircraftType, Airframe, Entry, Person, TrainingDevice } from '@core/model';
-import type { BookId, BookInfo } from './types';
+import type { Decision } from '@core/reconcile';
+import type { BookId, BookInfo, SourceFile } from './types';
 
 /** A stored row: the model object's fields, flat, plus the book it belongs to. */
 export type Row<T> = T & { book: BookId };
@@ -8,6 +9,12 @@ export type Row<T> = T & { book: BookId };
 export interface SettingRow {
   key: string;
   value: unknown;
+}
+
+export interface DecisionRow {
+  /** `decisionKey(decision)`. */
+  key: string;
+  decision: Decision;
 }
 
 export const DB_NAME = 'flight-log';
@@ -20,6 +27,8 @@ export class FlightLogDb extends Dexie {
   people!: EntityTable<Row<Person>>;
   books!: EntityTable<BookInfo, 'book'>;
   settings!: EntityTable<SettingRow, 'key'>;
+  sources!: EntityTable<SourceFile, 'source'>;
+  decisions!: EntityTable<DecisionRow, 'key'>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -31,6 +40,10 @@ export class FlightLogDb extends Dexie {
       people: '[book+id], book',
       books: 'book',
       settings: 'key',
+    });
+    this.version(2).stores({
+      sources: 'source',
+      decisions: 'key',
     });
   }
 }
