@@ -150,4 +150,21 @@ export interface ImportResult {
 }
 
 /** An importer is a pure function from file text to an ImportResult. */
-export type Importer<Options = void> = (text: string, options?: Options) => ImportResult;
+export type Importer = (text: string, options?: ImportOptions) => ImportResult;
+
+/**
+ * What to do with a column the importer has no built-in meaning for (the user-defined
+ * fields each app lets a pilot add). Supplied by the caller, keyed by source column header.
+ * Unmapped user-defined columns still land in `custom` under a key derived from the header.
+ */
+export type ColumnMapping =
+  /** Decimal hours that belong in a built-in duration field. */
+  | { duration: DurationField }
+  /** A toggle that, when true, states the operating rule. */
+  | { rule: OperatingRule }
+  /** A user-defined field, stored in `custom` under `key`. */
+  | { custom: string; type: 'duration' | 'count' | 'toggle' | 'text' };
+
+export interface ImportOptions {
+  columns?: Record<string, ColumnMapping>;
+}
