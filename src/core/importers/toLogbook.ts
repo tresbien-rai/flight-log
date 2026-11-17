@@ -20,7 +20,7 @@ import {
   type Seat,
   type TrainingDevice,
 } from '../model';
-import { instantAfter, resolveUtcClock } from '../time/zone';
+import { instantAfter, localDateOf, minutesBetween, resolveUtcClock } from '../time/zone';
 import { clean } from './normalize';
 import type { ImportResult, SourceAircraft, SourceRecord } from './types';
 
@@ -33,6 +33,31 @@ export interface ConversionNote {
 
 export interface ToLogbookOptions {
   airports?: AirportLookup;
+  /**
+   * What the source's date column means for a flight with clock times: the UTC date of
+   * departure, or the local date at the departure airport. Both LogTen and ForeFlight
+   * exports have been observed to use the UTC date. Default `utc`.
+   */
+  dateBasis?: 'utc' | 'local';
+}
+
+const DAY = 24 * 60;
+
+function shiftMinutes(instant: string, delta: number): string {
+  return new Date(Date.parse(instant.replace('Z', ':00Z')) + delta * 60_000)
+    .toISOString()
+    .replace(/:\d\d\.\d+Z$/, 'Z');
+}
+
+/**
+ * The instant with this UTC clock time that is nearest to `anchor` in the sense a logbook
+ * means it: normally after the anchor, but a time that would land more than `maxAfter`
+ * minutes later is taken to be shortly before it instead (a mistyped or out-of-order time).
+ * This keeps one bad cell from pushing every later time a day ahead.
+ */
+function near(anchor: string, utcMinutes: number, maxAfter: number): string {
+  const after = instantAfter(anchor, utcMinutes);
+  return minutesBetween(anchor, after) > maxAfter ? shiftMinutes(after, -DAY) : after;
 }
 
 /** Stamp for entries built here; the caller stamps real times. */
@@ -319,25 +344,38 @@ export function toLogbook(
     // Clock times.
     const clock = rec.clock;
     const times: Pick<Entry, 'out' | 'off' | 'on' | 'in' | 'scheduledOut' | 'scheduledIn'> = {};
+    let localDate = rec.date;
     const hasClock = Object.values(clock).some((v) => v !== undefined);
     if (validDate && hasClock) {
       const tz = tzOf(rec.from, rec, id);
-      let prev: string | undefined;
+      const basis = options.dateBasis ?? 'utc';
+      const anchorAt = (v: number) =>
+        resolveUtcClock(rec.date, v, basis === 'utc' ? undefined : tz);
+      let anchor: string | undefined;
       for (const key of ['out', 'off', 'on', 'in'] as const) {
         const v = clock[key];
         if (v === undefined) continue;
-        prev = prev === undefined ? resolveUtcClock(rec.date, v, tz) : instantAfter(prev, v);
-        times[key] = prev;
+        // Each time is placed relative to the first one present, not to its predecessor.
+        if (anchor === undefined) {
+          anchor = anchorAt(v);
+          times[key] = anchor;
+        } else {
+          times[key] = near(anchor, v, 18 * 60);
+        }
       }
       if (clock.scheduledOut !== undefined) {
-        times.scheduledOut = resolveUtcClock(rec.date, clock.scheduledOut, tz);
+        times.scheduledOut =
+          times.out === undefined
+            ? anchorAt(clock.scheduledOut)
+            : near(shiftMinutes(times.out, -12 * 60), clock.scheduledOut, DAY);
       }
       if (clock.scheduledIn !== undefined) {
-        const anchor = times.scheduledOut ?? times.out;
+        const from = times.scheduledOut ?? times.out;
         times.scheduledIn =
-          anchor === undefined
-            ? resolveUtcClock(rec.date, clock.scheduledIn, tz)
-            : instantAfter(anchor, clock.scheduledIn);
+          from === undefined ? anchorAt(clock.scheduledIn) : instantAfter(from, clock.scheduledIn);
+      }
+      if (basis === 'utc' && tz !== undefined && anchor !== undefined) {
+        localDate = localDateOf(anchor, tz);
       }
     }
 
@@ -369,7 +407,7 @@ export function toLogbook(
     return {
       id,
       kind,
-      date: rec.date,
+      date: localDate,
       ...times,
       totalSource: 'typed',
       rule,

@@ -348,7 +348,7 @@ describe('clock times', () => {
       res([
         rec({ from: 'KLAX', to: 'KJFK', clock: { out: 30, off: 45, on: 5 * 60, in: 5 * 60 + 10 } }),
       ]),
-      { airports },
+      { airports, dateBasis: 'local' },
     );
     const e = logbook.entries[0]!;
     expect(e.out).toBe('2025-06-22T00:30Z');
@@ -361,7 +361,7 @@ describe('clock times', () => {
   it('chains an arrival after midnight UTC', () => {
     const { logbook } = toLogbook(
       res([rec({ from: 'KLAX', clock: { out: 23 * 60 + 30, off: 23 * 60 + 45, on: 60, in: 70 } })]),
-      { airports },
+      { airports, dateBasis: 'local' },
     );
     const e = logbook.entries[0]!;
     expect(e.out).toBe('2025-06-21T23:30Z');
@@ -373,6 +373,7 @@ describe('clock times', () => {
   it('uses the departure zone east of UTC', () => {
     const { logbook } = toLogbook(res([rec({ from: 'RJTT', clock: { out: 21 * 60 } })]), {
       airports,
+      dateBasis: 'local',
     });
     expect(logbook.entries[0]!.out).toBe('2025-06-20T21:00Z');
   });
@@ -380,6 +381,7 @@ describe('clock times', () => {
   it('anchors the first present time when out is missing', () => {
     const { logbook } = toLogbook(res([rec({ from: 'KLAX', clock: { off: 45, in: 3 * 60 } })]), {
       airports,
+      dateBasis: 'local',
     });
     const e = logbook.entries[0]!;
     expect(e.out).toBeUndefined();
@@ -398,7 +400,7 @@ describe('clock times', () => {
         rec({ line: 3, from: 'KLAX', clock: { out: 40, scheduledIn: 120 } }),
         rec({ line: 4, from: 'KLAX', clock: { scheduledIn: 120 } }),
       ]),
-      { airports },
+      { airports, dateBasis: 'local' },
     );
     const [a, b, c] = logbook.entries;
     expect(a!.scheduledOut).toBe('2025-06-22T00:30Z');
@@ -618,5 +620,52 @@ describe('isolation from the input', () => {
     e.crew.push({ personId: 'x', role: 'other' });
     logbook.airframes[0]!.registrations.push({ value: 'Z' });
     expect(input).toEqual(snapshot);
+  });
+});
+
+describe('clock times with a UTC-dated source (the default)', () => {
+  it('takes the logged date as the UTC date and derives the local date', () => {
+    const { logbook } = toLogbook(res([rec({ from: 'KLAX', clock: { out: 30, in: 5 * 60 } })]), {
+      airports,
+    });
+    const e = logbook.entries[0]!;
+    expect(e.out).toBe('2025-06-21T00:30Z');
+    expect(e.in).toBe('2025-06-21T05:00Z');
+    // 00:30Z on the 21st is the evening of the 20th in Los Angeles.
+    expect(e.date).toBe('2025-06-20');
+  });
+
+  it('keeps the logged date when the airport is unknown', () => {
+    const { logbook } = toLogbook(res([rec({ from: 'ZZZZ', clock: { out: 30 } })]), { airports });
+    expect(logbook.entries[0]!.date).toBe('2025-06-21');
+  });
+
+  it('does not let one out-of-order time push later times a day ahead', () => {
+    // Off is typed before out; on and in are still placed relative to out.
+    const { logbook } = toLogbook(
+      res([rec({ from: 'KLAX', clock: { out: 74, off: 10 * 60 + 31, on: 204, in: 206 } })]),
+      { airports },
+    );
+    const e = logbook.entries[0]!;
+    expect(e.out).toBe('2025-06-21T01:14Z');
+    expect(e.off).toBe('2025-06-21T10:31Z');
+    expect(e.on).toBe('2025-06-21T03:24Z');
+    expect(e.in).toBe('2025-06-21T03:26Z');
+  });
+
+  it('places a time just before out on the same day, not a day later', () => {
+    const { logbook } = toLogbook(
+      res([rec({ from: 'KLAX', clock: { out: 16 * 60 + 47, off: 15 * 60 + 38 } })]),
+      { airports },
+    );
+    expect(logbook.entries[0]!.off).toBe('2025-06-21T15:38Z');
+  });
+
+  it('still rolls an arrival past midnight', () => {
+    const { logbook } = toLogbook(
+      res([rec({ from: 'KLAX', clock: { out: 23 * 60 + 30, in: 70 } })]),
+      { airports },
+    );
+    expect(logbook.entries[0]!.in).toBe('2025-06-22T01:10Z');
   });
 });

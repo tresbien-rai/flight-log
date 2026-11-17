@@ -38,7 +38,8 @@ export const duplicateEntry: LogbookRule = {
       out.push(
         finding(
           'duplicate-entry',
-          'warning',
+          // Without clock times, equal totals on one day are common (back-to-back lessons).
+          first.out ? 'warning' : 'note',
           group.map((e) => e.id),
           ['date', first.out ? 'out' : 'durations.total'],
           `${group.length} flights on ${first.date} in ${first.airframeId} from ${first.from}${first.to ? ` to ${first.to}` : ''} look identical.`,

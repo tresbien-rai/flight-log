@@ -18,7 +18,18 @@ describe('solo-inconsistent', () => {
     const f = run(soloInconsistent, makeEntry({ durations: { solo: 60, dualReceived: 10 } }));
     expect(f).toHaveLength(1);
   });
-  it.each(['PIC', 'SIC', 'instructor', 'student', 'examiner'] as const)(
+  it('ignores a PIC in the crew, who is the pilot naming themself', () => {
+    expect(
+      run(soloInconsistent, [
+        makeEntry({
+          durations: { solo: 60, pic: 60, total: 60 },
+          crew: [{ personId: 'p', role: 'PIC' }],
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it.each(['SIC', 'instructor', 'student', 'examiner'] as const)(
     'errors when a %s is in the crew',
     (role) => {
       const e = makeEntry({ durations: { solo: 60 }, crew: [{ personId: 'p1', role }] });

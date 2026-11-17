@@ -23,7 +23,8 @@ export const soloInconsistent: EntryRule = {
       reasons.push(`dual received is ${hours(dualReceived)}`);
       fields.push('durations.dualReceived');
     }
-    const others = entry.crew.filter((c) => FLYING_ROLES.includes(c.role));
+    // A PIC in the crew list on a solo flight is the pilot naming themself, so it is ignored.
+    const others = entry.crew.filter((c) => c.role !== 'PIC' && FLYING_ROLES.includes(c.role));
     if (others.length > 0) {
       reasons.push(`crew includes ${[...new Set(others.map((c) => c.role))].join(', ')}`);
       fields.push('crew');

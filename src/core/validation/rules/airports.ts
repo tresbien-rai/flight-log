@@ -5,6 +5,8 @@ import { finding, haversineNm, resolveEnds } from './helpers';
 const XC_MIN_NM = 50;
 const MAX_KT = 600;
 const MIN_KT = 40;
+const JET_MIN_KT = 150;
+const JET_MIN_KT_DISTANCE_NM = 150;
 const MIN_KT_DISTANCE_NM = 50;
 
 export const implausibleDuration: EntryRule = {
@@ -44,6 +46,12 @@ export const implausibleDuration: EntryRule = {
       const nm = haversineNm(ends.from, ends.to);
       const kt = nm / (total / 60);
       const where = `${entry.from} to ${entry.to}`;
+      // A jet averaging under 150 kt block-to-block over a real distance is almost always a
+      // mistyped time; a piston aircraft can legitimately be far slower.
+      const engine = ctx.typeOf(entry)?.engine;
+      const jet = engine === 'turbofan' || engine === 'turbojet';
+      const minKt = jet ? JET_MIN_KT : MIN_KT;
+      const minDistance = jet ? JET_MIN_KT_DISTANCE_NM : MIN_KT_DISTANCE_NM;
       if (kt > MAX_KT) {
         out.push(
           finding(
@@ -54,7 +62,7 @@ export const implausibleDuration: EntryRule = {
             `${Math.round(nm)} NM from ${where} in ${hours(total)} implies ${Math.round(kt)} kt, faster than any likely aircraft.`,
           ),
         );
-      } else if (kt < MIN_KT && nm > MIN_KT_DISTANCE_NM) {
+      } else if (kt < minKt && nm > minDistance) {
         out.push(
           finding(
             'implausible-duration',

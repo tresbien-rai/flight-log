@@ -286,6 +286,7 @@ Points worth calling out:
 - Clock times are stored as UTC instants (`2025-06-22T17:31Z`), never as bare `HH:MM`.
 - `date` is the **local date at the departure airport**, which is what a paper logbook and an airline schedule use. When out-time and departure airport are known it is derived; for older entries with no clock times it is stored as given.
 - The UTC date is always available as a derived value.
+- **Imports are UTC-dated.** Both the LogTen and the ForeFlight export date an airline leg by the UTC date of departure (a leg leaving Los Angeles at 18:38 local on the 30th is dated the 31st). The converter takes the source date as UTC, resolves the clock times against it, and derives the local date from the departure airport's time zone. Reports that help the pilot find an entry in the old app show the source's date.
 
 **Entering clock times.** ACARS reports give UTC, and typing UTC avoids conversion mistakes, so UTC is the default. Like LogTen, and unlike ForeFlight:
 
@@ -549,7 +550,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0, 1 and 2 are done.
+Milestones 0 to 3 are done.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

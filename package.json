@@ -18,7 +18,8 @@
     "typecheck": "tsc -b",
     "profile": "tsx scripts/profile.ts",
     "audit": "tsx scripts/audit.ts",
-    "build:airports": "tsx scripts/build-airports.ts"
+    "build:airports": "tsx scripts/build-airports.ts",
+    "validate": "tsx scripts/validate.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

@@ -13,5 +13,9 @@ Node command-line tools that run the core logic directly. Run with `npm run <nam
   Downloads OurAirports `airports.csv` (public domain) and regenerates the bundled
   `src/core/airports/airports.data.json` (airports and their IANA zones, sorted by ident).
   Needs network access. Prints rows kept by type, duplicate idents dropped and file size.
+- `validate` — `npm run validate -- <logten|foreflight> <file> [--out data/validate.md]`
+  Converts an export to logbook entries and runs every validation rule. `--out` lists each
+  finding by date, tail and route.
+- `build:airports` regenerates the bundled airport table from OurAirports.
 
 Real exports belong in the git-ignored `data/` directory.

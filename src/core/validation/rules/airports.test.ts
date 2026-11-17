@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeEntry, makeLogbook, makeType, run, runWithAirports } from '../testing';
+import { makeAirframe, makeEntry, makeLogbook, makeType, run, runWithAirports } from '../testing';
 import { implausibleDuration, missingAirport, unknownAirport, xc50TooShort } from './airports';
 import { haversineNm } from './helpers';
 
@@ -146,5 +146,38 @@ describe('type lookup used by implausible-duration', () => {
     const book = { aircraftTypes: [makeType(), makeType({ id: 't2', engine: 'turbofan' })] };
     expect(run(implausibleDuration, e, book)).toEqual([]);
     expect(makeLogbook(book).aircraftTypes).toHaveLength(2);
+  });
+});
+
+describe('implausible-duration for jets', () => {
+  const jet = makeLogbook({
+    aircraftTypes: [makeType({ id: 'JET', engine: 'turbofan' })],
+    airframes: [makeAirframe({ id: 'a1', configurations: [{ value: 'JET' }] })],
+  });
+  const airports = (ident: string) =>
+    ({
+      KAAA: { ident: 'KAAA', lat: 34, lon: -118, tz: 'UTC' },
+      KBBB: { ident: 'KBBB', lat: 32, lon: -106, tz: 'UTC' },
+    })[ident];
+
+  it('warns when a jet averages under 150 kt over a real distance', () => {
+    const f = run(
+      implausibleDuration,
+      [makeEntry({ from: 'KAAA', to: 'KBBB', durations: { total: 354 } })],
+      jet,
+      { airports },
+    );
+    expect(f.map((x) => x.ruleId)).toEqual(['implausible-duration']);
+  });
+
+  it('is silent for a normal jet block time', () => {
+    expect(
+      run(
+        implausibleDuration,
+        [makeEntry({ from: 'KAAA', to: 'KBBB', durations: { total: 111 } })],
+        jet,
+        { airports },
+      ),
+    ).toEqual([]);
   });
 });
