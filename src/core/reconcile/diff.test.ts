@@ -631,12 +631,44 @@ describe('diffRecords: remarks', () => {
     expect(one({ remarks: 'note' }, {})).toMatchObject({ pattern: 'missing-b' });
   });
 
+  it('ignores case, punctuation and spacing', () => {
+    expect(
+      one(
+        { remarks: '(IR) L4. Holds - VOR, then ILS' },
+        { remarks: '(ir) L4 holds  VOR then ILS.' },
+      ),
+    ).toMatchObject({ class: 'equivalent' });
+  });
+
+  it('one side containing the other is that other side missing something', () => {
+    expect(one({ remarks: 'Pattern work' }, { remarks: '3412 Pattern work, windy' })).toMatchObject(
+      {
+        class: 'systematic',
+        pattern: 'missing-a',
+      },
+    );
+    expect(one({ remarks: 'Pattern work; windy' }, { remarks: 'windy' })).toMatchObject({
+      pattern: 'missing-b',
+    });
+    // Whole words only.
+    expect(one({ remarks: 'work' }, { remarks: 'homework' })?.class).toBe('real');
+  });
+
   it('never leaks text in any diff of a full record', () => {
     const d = diffRecords(
       rec({ remarks: 'topsecretremark', route: 'KLAX' }),
       rec({ remarks: 'othersecretremark', route: 'KSFO' }),
     );
     expect(JSON.stringify(d)).not.toContain('secretremark');
+  });
+});
+
+describe('diffRecords: route', () => {
+  it('compares waypoints, not separators', () => {
+    expect(one({ route: 'KAAA-KBBB - KCCC' }, { route: 'kaaa kbbb, kccc' })?.class).toBe(
+      'equivalent',
+    );
+    expect(one({ route: 'KAAA KBBB' }, { route: 'KAAA KCCC' })?.class).toBe('real');
   });
 });
 

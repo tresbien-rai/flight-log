@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5 in progress (decision model and resolve step done, audit screen not started).
+Last updated: milestone 5, first working audit screen.
 
 ## State
 
@@ -14,7 +14,7 @@ Last updated: milestone 5 in progress (decision model and resolve step done, aud
 | 2 Matching + diff           | done                         |
 | 3 Validation engine         | done                         |
 | 4 App shell + local storage | done, deployed               |
-| 5 Audit UI                  | **in progress** (see below)  |
+| 5 Audit UI                  | **usable**, gaps below       |
 | 6–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
@@ -38,7 +38,7 @@ Last updated: milestone 5 in progress (decision model and resolve step done, aud
 | `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
 | `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers                                                                                          |
 | `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions), `importFile`, `loadAudit` / `writeMainBook`, lazy airport loader             |
-| `src/app`             | React screens: shell, import, ledger, entry detail                                                                                            |
+| `src/app`             | React screens: shell, import, ledger, entry detail, audit                                                                                     |
 | `scripts`             | `profile`, `audit`, `validate`, `build:airports` command-line tools                                                                           |
 | `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
 | `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
@@ -93,7 +93,9 @@ App:
 - Going to Import and back loses the current filters.
 - In the phone-size entry sheet, Escape and the arrow keys do nothing.
 - Entry detail is read-only. There is no way to create, edit or delete an entry.
-- `main` ("My logbook") can be built by `writeMainBook`, but no screen calls it yet.
+- `main` ("My logbook") is written only by the "Build my logbook" button on the audit screen.
+- The audit screen cannot pair two one-app-only entries by hand (core supports it: a pair
+  decision with `match: 'manual'`). It has no keyboard movement through the list.
 - Books imported before milestone 5 have no stored source file. The audit needs both files
   imported again once (`loadAudit` reports which are missing).
 - Column mappings for custom fields are hard-coded in `src/core/importers/presets.ts`
@@ -107,11 +109,10 @@ Core:
 
 - The audit and validation command-line reports are the only place differences are shown.
   Decisions can be stored and applied (DESIGN §7.2) but there is no screen to make them.
-- **The new resolve step has only been run on synthetic fixtures.** The real exports were not
-  available in the session that built it. First thing to check with them: that a row's
-  fingerprint is the same in two exports taken at different times (a LogTen column that
-  changes on every export, such as a running total, would break replay), and how many fields
-  stay open after the two obvious bulk rules.
+- Fingerprint stability between two exports taken at different times has not been tested:
+  only one pair of exports (2026-11-17) has been seen. The pilot expects LogTen not to write
+  anything that changes per export. Check it when the next exports arrive: the audit screen
+  lists decisions that no longer match anything.
 - The operating rule defaults to Part 91 where the source does not state it; the inference
   and confirmation step (DESIGN §7.4) is not built. About 120 airline legs are unmarked.
 - Night time is taken from the source as typed. Computing it from times and position
@@ -127,7 +128,7 @@ Core:
 ## Milestone 5: where it stands
 
 Goal: resolve the differences between the two imported books in the app and produce `main`.
-DESIGN §7 is the specification; §7.2 describes what is built.
+DESIGN §7 is the specification; §7.2 and §7.3 describe what is built.
 
 Done:
 
@@ -138,18 +139,29 @@ Done:
    when the pilot changes something.
 3. **Merged aircraft list and merged logbook** (`merge.ts`), and the glue `loadAudit`,
    `reresolve` and `writeMainBook` in `src/storage/audit.ts`.
+4. **The audit screen** (`src/app/routes/AuditRoute.tsx`, `components/AuditOverview.tsx`,
+   `components/AuditDetail.tsx`, helpers in `lib/audit.ts`): what is open, totals per app and
+   merged, rules for whole groups, a filterable list, per-field choice (either app, both, or a
+   typed value), pairing confirmation, keep / leave out for one-app-only entries, removal of
+   stale decisions, and "Build my logbook".
+
+What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) show:
+
+- 1,770 pairs, 21 of them below an exact match; 44 one-app-only entries (43 simulator
+  sessions in ForeFlight, 1 ground session in LogTen).
+- With no decisions about 7,000 fields are open. The rounding rule and the blank-in-one-app
+  rule leave 378 fields on 286 flights: crew 98, route 45, landings 40, remarks 37,
+  approaches 26, day takeoffs 24, night 21, passengers 20, actual instrument 15, and a few
+  each of the rest.
+- Parsing both files takes about 0.3 s and applying decisions about 0.1 s on a laptop.
 
 Next, in order:
 
-4. **The audit screen** (DESIGN §7.3): summary with converging totals, a filterable list of
-   pairs, a side-by-side view with per-field choice, bulk rules with a count of what each would
-   settle, pair confirmation, orphans (keep / drop / match by hand), a list of stale decisions.
-   Decide when `main` is written: suggested is on demand ("Build my logbook"), allowed while
-   things are open, with the open count shown on the book.
-5. **Operating-rule proposals** (DESIGN §7.4), grouped for bulk confirmation. Today a rule
-   stated by only one app is a blank-on-one-side difference and follows that bulk rule.
-6. **Type mapping** onto one type list (DESIGN §7.5).
-7. Run it all against the real exports and bring the 43 ForeFlight-only simulator sessions
-   across as kept orphans.
+5. **Pairing by hand** on the audit screen, and keyboard movement through the list.
+6. **Operating-rule proposals** (DESIGN §7.4), grouped for bulk confirmation. Today a rule
+   stated by only one app is a blank-in-one-app difference and follows that rule; legs
+   unmarked in both apps still default to Part 91.
+7. **Type mapping** onto one type list (DESIGN §7.5).
+8. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 
 Open questions for the pilot are listed in DESIGN §12.

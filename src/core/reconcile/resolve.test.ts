@@ -235,6 +235,18 @@ describe('resolve: bulk rules', () => {
     expect(r.open.fields).toBe(1);
   });
 
+  it('settles real differences only through a rule that names the field', () => {
+    const x = () => A({ remarks: 'one', people: [{ name: 'Pat Example', role: 'SIC' }] });
+    const y = () => B({ remarks: 'two', people: [{ name: 'Sam Sample', role: 'SIC' }] });
+    const r = run([x()], [y()], [bulk('real', 'both', 'remarks'), bulk('real', 'b', 'people')]);
+    expect(r.pairs[0]!.record.remarks).toBe('one\ntwo');
+    expect(r.pairs[0]!.record.people).toEqual([{ name: 'Sam Sample', role: 'SIC' }]);
+    expect(r.pairs[0]!.fields.map((f) => f.by)).toEqual(['bulk', 'bulk']);
+
+    expect(run([x()], [y()], [bulk('real', 'a')]).open.fields).toBe(2);
+    expect(run([A()], [B({ tail: 'N999' })], [bulk('real', 'both', 'tail')]).open.fields).toBe(1);
+  });
+
   it('is never reported stale', () => {
     expect(run([A()], [B()], [bulk('rounding', 'a')]).stale).toEqual([]);
   });

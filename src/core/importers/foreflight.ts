@@ -514,7 +514,11 @@ export const importForeFlight: Importer = (text: string, options?: ImportOptions
       rec.people.push({ name: instructor, role: 'instructor' });
     }
 
-    const remarks = cell('PilotComments')?.trim();
+    // ForeFlight's own export wraps every comment in literal double quotes.
+    const remarks = cell('PilotComments')
+      ?.trim()
+      .replace(/^"([^]*)"$/, '$1')
+      .trim();
     if (remarks) rec.remarks = remarks;
 
     // User-defined columns

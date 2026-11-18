@@ -53,7 +53,10 @@ export type DiffClass = 'equivalent' | 'systematic' | 'real';
 export const DIFF_PATTERNS = [
   /** One side is the other rounded to a tenth of an hour. */
   'rounding',
-  /** One side has no value (undefined) and the other has a non-zero one. */
+  /**
+   * One side has no value and the other has one; or, for crew and remarks, one side says
+   * everything the other says and more. The named side is the one that lacks something.
+   */
   'missing-a',
   'missing-b',
 ] as const;
@@ -147,8 +150,9 @@ export interface OrphanDecision {
  * - `a` / `b`: always that side.
  * - `more-precise`: for `rounding`, the value that is not a whole tenth of an hour.
  * - `present`: for `missing-a` / `missing-b`, the side that has a value.
+ * - `both`: for `people` and `remarks`, as in FieldChoice.
  */
-export type BulkChoice = Side | 'more-precise' | 'present';
+export type BulkChoice = Side | 'both' | 'more-precise' | 'present';
 
 /**
  * One rule for every difference of a pattern, optionally limited to one field. A pair's own
@@ -156,7 +160,11 @@ export type BulkChoice = Side | 'more-precise' | 'present';
  */
 export interface BulkDecision {
   kind: 'bulk';
-  pattern: DiffPattern;
+  /**
+   * `real` is a rule for every real difference in one field ("crew names: keep LogTen's").
+   * It must name its `field`, and may choose `a`, `b` or `both`.
+   */
+  pattern: DiffPattern | 'real';
   field?: DecisionField;
   choice: BulkChoice;
   decidedAt: string;

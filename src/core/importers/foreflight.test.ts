@@ -481,6 +481,17 @@ describe('remarks, rule and pilotFlying', () => {
     expect(row(22).remarks).toBeUndefined();
   });
 
+  it('removes the literal quotes ForeFlight’s own export wraps comments in', () => {
+    const pair = importForeFlight(readFileSync('fixtures/pair/foreflight.csv', 'utf8'));
+    expect(pair.records.map((r) => r.remarks)).toEqual([
+      'Rounding only.',
+      'Night differs.',
+      'Tail differs.',
+      'Identical.',
+      'Procedures trainer.',
+    ]);
+  });
+
   it('leaves rule and pilotFlying absent by default', () => {
     for (const r of sample.records) {
       expect(r.rule).toBeUndefined();
