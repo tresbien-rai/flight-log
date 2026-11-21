@@ -8,7 +8,8 @@
  */
 import type { SourceCounts, SourcePerson, SourceRecord } from '../importers';
 import { DURATION_FIELDS } from '../model';
-import { diffRecords, nameKey } from './diff';
+import { nameKey } from '../importers/normalize/names';
+import { diffRecords } from './diff';
 import type {
   BulkDecision,
   Decision,
@@ -26,6 +27,8 @@ import type {
   ResolvedField,
   ResolvedOrphan,
   ResolvedPair,
+  RuleDecision,
+  RuleStatus,
   Side,
 } from './types';
 
@@ -80,6 +83,8 @@ export function decisionKey(d: Decision): string {
       return `orphan:${d.side}:${d.record}`;
     case 'bulk':
       return `bulk:${d.pattern}:${d.field ?? '*'}`;
+    case 'rule':
+      return `rule:${d.entry}`;
   }
 }
 
@@ -336,6 +341,11 @@ function settleEquivalent(
     if (runways(b) > runways(target)) copyField(target, b, field);
     return;
   }
+  if (field === 'people') {
+    // The app that gives people more roles says more.
+    if (b.people.length > target.people.length) copyField(target, b, field);
+    return;
+  }
   if (field !== 'landings' && diffs.length === 1 && diffs[0]!.a === undefined) {
     copyField(target, b, field);
   }
@@ -381,9 +391,11 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
   const pairDecisions: PairDecision[] = [];
   const orphanDecisions = new Map<string, OrphanDecision>();
   const bulk = new Map<string, BulkDecision>();
+  const ruleDecisions = new Map<Fingerprint, RuleDecision>();
   for (const [key, d] of byKey) {
     if (d.kind === 'pair') pairDecisions.push(d);
     else if (d.kind === 'orphan') orphanDecisions.set(key, d);
+    else if (d.kind === 'rule') ruleDecisions.set(d.entry, d);
     else bulk.set(key, d);
   }
   const exact = new Map(pairDecisions.map((d) => [`${d.a}|${d.b}`, d]));
@@ -430,6 +442,22 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
   };
 
   const open = { matches: 0, fields: 0, orphans: 0 };
+  let openRules = 0;
+
+  /** Settles the operating rule of a merged record, writing a decided rule onto it. */
+  const settleRule = (record: SourceRecord, anchor: Fingerprint, pending = false): RuleStatus => {
+    if (record.kind !== 'flight') return 'none';
+    // `pending`: one app states a rule and that difference is still to be decided.
+    if (record.rule !== undefined || pending) return 'stated';
+    const d = ruleDecisions.get(anchor);
+    if (d) {
+      used.add(d);
+      record.rule = d.rule;
+      return 'decided';
+    }
+    openRules++;
+    return 'open';
+  };
 
   // 2. Fields.
   const pairs: ResolvedPair[] = working.map(({ a, b, tier }) => {
@@ -502,6 +530,11 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
       fields,
       record,
       entryId: `main:${fa}`,
+      rule: settleRule(
+        record,
+        fa,
+        fields.some((f) => f.field === 'rule' && f.by === 'undecided'),
+      ),
     };
     if (decision && used.has(decision)) out.decision = decision;
     return out;
@@ -516,16 +549,19 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
       const d = orphanDecisions.get(`orphan:${side}:${fingerprint}`);
       if (d) used.add(d);
       else open.orphans++;
+      const action = d?.action ?? 'undecided';
+      const merged = cloneRecord(record);
       orphans.push({
         side,
-        record,
+        record: merged,
         fingerprint,
-        action: d?.action ?? 'undecided',
+        action,
         entryId: `main:${fingerprint}`,
+        rule: action === 'drop' ? 'none' : settleRule(merged, fingerprint),
       });
     }
   }
 
   const stale = [...byKey.values()].filter((d) => d.kind !== 'bulk' && !used.has(d));
-  return { pairs, orphans, open, stale };
+  return { pairs, orphans, open, openRules, stale };
 }

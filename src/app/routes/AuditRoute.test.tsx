@@ -126,7 +126,7 @@ describe('audit screen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Different flights' }));
     await waitFor(() => expect(rows()).toHaveLength(6));
-    const split = screen.getAllByRole('button', { name: /4 Mar 2024/ });
+    const split = rows().filter((row) => /4 Mar 2024/.test(row.textContent ?? ''));
     expect(split).toHaveLength(2);
     expect(split[0]).toHaveTextContent('Only in LogTen');
 
@@ -180,6 +180,55 @@ describe('audit screen', () => {
     expect(screen.getByText('Nothing to show.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'All' }));
     expect(rows()).toHaveLength(5);
+  });
+
+  it('proposes an operating rule for unmarked flights, by group and for one flight', async () => {
+    const user = userEvent.setup();
+    const store = await auditStore();
+    renderApp(store, '/audit');
+    // Three piston flights and one jet leg with SIC time but no flight number: all Part 91.
+    const piston = await screen.findByRole('button', {
+      name: 'Mark 3 piston-engine flights, 1 Mar 2024 – 5 Mar 2024 as Part 91',
+    });
+    expect(screen.getByRole('list', { name: 'Still to decide' })).toHaveTextContent(
+      /4\s*flights without an\s+operating rule/,
+    );
+
+    await user.click(screen.getByRole('button', { name: /^Show 3 piston-engine flights/ }));
+    expect(rows()).toHaveLength(3);
+    await user.click(rows()[2]!);
+    expect(await screen.findByText('The two apps agree on this flight.')).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Operating rule' }), '135');
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Operating rule' })).toHaveValue('135'),
+    );
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(await screen.findByText('Marked Part 135 by you')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back to differences' }));
+    expect(rows()).toHaveLength(5);
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Mark 2 piston-engine flights, 1 Mar 2024 – 2 Mar 2024 as Part 91',
+      }),
+    );
+    expect(await screen.findByText('Marked Part 91 by you')).toBeInTheDocument();
+    expect(piston).not.toBeInTheDocument();
+    expect((await store.listDecisions()).map((d) => d.kind === 'rule' && d.rule).sort()).toEqual([
+      '135',
+      '91',
+      '91',
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Undo marking 2 flights as Part 91' }));
+    expect(
+      await screen.findByRole('button', { name: /^Mark 2 piston-engine flights/ }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Build my logbook' }));
+    await screen.findByText(/Built with 6 entries\./);
+    const main = (await store.loadBook('main'))!;
+    expect(main.entries.filter((e) => e.rule === '135')).toHaveLength(1);
   });
 
   it('builds my logbook and opens it', async () => {

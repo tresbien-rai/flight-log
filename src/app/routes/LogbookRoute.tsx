@@ -93,6 +93,7 @@ function BookScreen({ bookId }: { bookId: BookId }) {
 }
 
 function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) {
+  const { nameOrder } = useShell();
   const analysis = useLogbookAnalysis(logbook);
   const { index, findings } = analysis;
   const controls = useFilterState();
@@ -256,6 +257,7 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
               findings={findings.get(selected.id) ?? []}
               onClose={close}
               sheet={sheet}
+              nameOrder={nameOrder}
             />
           ) : (
             <aside className="detail" aria-label="Entry detail">

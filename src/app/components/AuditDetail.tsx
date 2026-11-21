@@ -6,9 +6,13 @@ import type {
   ResolvedOrphan,
   ResolvedPair,
 } from '@core/reconcile';
+import type { NameOrder } from '@core/importers';
+import type { OperatingRule } from '@core/model';
+import type { RuleStatus } from '@core/reconcile';
 import {
   displayTyped,
   displayValue,
+  RULE_TEXT,
   fieldLabel,
   parseTyped,
   routeText,
@@ -23,6 +27,7 @@ export interface DetailActions {
   setField: (pair: ResolvedPair, field: DecisionField, choice: FieldChoice | undefined) => void;
   setMatch: (pair: ResolvedPair, match: 'confirmed' | 'rejected' | null) => void;
   setOrphan: (orphan: ResolvedOrphan, action: 'keep' | 'drop' | undefined) => void;
+  setRule: (rule: OperatingRule | undefined) => void;
   /** Present when this orphan came from a pairing the pilot rejected. */
   undoReject?: (orphan: ResolvedOrphan) => void;
 }
@@ -86,18 +91,20 @@ function FieldCard({
   pair,
   field,
   actions,
+  nameOrder,
 }: {
   pair: ResolvedPair;
   field: ResolvedField;
   actions: DetailActions;
+  nameOrder: NameOrder;
 }) {
   const name = fieldLabel(field.field);
   const choice = field.choice;
   const typed = typeof choice === 'object' ? choice.value : undefined;
   const canBoth = field.field === 'people' || field.field === 'remarks';
   const options: { value: 'a' | 'b' | 'both'; label: string; text: string }[] = [
-    { value: 'a', label: SIDE_LABEL.a, text: displayValue(pair.a, field.field) },
-    { value: 'b', label: SIDE_LABEL.b, text: displayValue(pair.b, field.field) },
+    { value: 'a', label: SIDE_LABEL.a, text: displayValue(pair.a, field.field, nameOrder) },
+    { value: 'b', label: SIDE_LABEL.b, text: displayValue(pair.b, field.field, nameOrder) },
   ];
   if (canBoth) options.push({ value: 'both', label: 'Both', text: 'Keep what each app has' });
 
@@ -169,13 +176,19 @@ export function AuditDetail({
   actions,
   onClose,
   sheet,
+  nameOrder,
+  rule,
 }: {
   pair?: ResolvedPair;
   orphan?: ResolvedOrphan;
   actions: DetailActions;
   onClose: () => void;
   sheet: boolean;
+  nameOrder: NameOrder;
+  /** Where this entry's operating rule comes from. */
+  rule: RuleStatus;
 }) {
+  const merged = pair?.record ?? orphan!.record;
   const record = pair?.a ?? orphan!.record;
   const live = pair?.fields.filter((f) => f.class !== 'equivalent' || f.by === 'pair') ?? [];
   const same = (pair?.fields.length ?? 0) - live.length;
@@ -242,7 +255,13 @@ export function AuditDetail({
                 <p className="muted">The two apps agree on this flight.</p>
               ) : null}
               {live.map((field) => (
-                <FieldCard key={field.field} pair={pair} field={field} actions={actions} />
+                <FieldCard
+                  key={field.field}
+                  pair={pair}
+                  field={field}
+                  actions={actions}
+                  nameOrder={nameOrder}
+                />
               ))}
               {same > 0 ? (
                 <p className="detail-note">
@@ -250,6 +269,34 @@ export function AuditDetail({
                   the same.
                 </p>
               ) : null}
+            </section>
+          ) : null}
+
+          {rule === 'open' || rule === 'decided' ? (
+            <section aria-label="Operating rule" className="rule-pick">
+              <label htmlFor="entry-rule" className="choice-name">
+                Operating rule
+              </label>
+              <span className={`choice-by${rule === 'open' ? ' is-open' : ''}`}>
+                {rule === 'open' ? 'Neither app says · counts as Part 91' : 'Your choice'}
+              </span>
+              <select
+                id="entry-rule"
+                className="input"
+                value={rule === 'decided' ? (merged.rule ?? '') : ''}
+                onChange={(event) =>
+                  actions.setRule(
+                    event.target.value === '' ? undefined : (event.target.value as OperatingRule),
+                  )
+                }
+              >
+                <option value="">Not marked</option>
+                {(['91', '121', '135', 'other'] as const).map((r) => (
+                  <option key={r} value={r}>
+                    {RULE_TEXT[r]}
+                  </option>
+                ))}
+              </select>
             </section>
           ) : null}
 

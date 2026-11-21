@@ -11,3 +11,5 @@ export {
 } from './resolve';
 export { mergeAircraft, mergedImport, toMergedLogbook } from './merge';
 export type { MergeSources } from './merge';
+export { proposeRules, ruleDecisions } from './rules';
+export type { RuleProposal } from './rules';

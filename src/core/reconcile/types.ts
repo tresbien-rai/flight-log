@@ -6,6 +6,7 @@
  * produce the same pairs in the same order.
  */
 import type { SourceRecord } from '../importers';
+import type { OperatingRule } from '../model';
 
 /**
  * How confidently two records were paired. Tiers are tried in this order; a record matched
@@ -170,7 +171,29 @@ export interface BulkDecision {
   decidedAt: string;
 }
 
-export type Decision = PairDecision | OrphanDecision | BulkDecision;
+/**
+ * The operating rule of one merged entry that neither app states. Keyed by the entry's
+ * anchor row (side `a`'s row for a pair, the row itself for a one-app-only entry), so a
+ * flight that first appears in a later export is asked about, never labelled silently.
+ * It applies only while the merged entry has no rule from the apps themselves.
+ */
+export interface RuleDecision {
+  kind: 'rule';
+  entry: Fingerprint;
+  rule: OperatingRule;
+  decidedAt: string;
+}
+
+export type Decision = PairDecision | OrphanDecision | BulkDecision | RuleDecision;
+
+/**
+ * Where a merged entry's operating rule comes from.
+ * - `stated`: one of the apps says it (and any disagreement is a `rule` field difference).
+ * - `decided`: a RuleDecision supplies it.
+ * - `open`: a flight with no rule yet. It becomes Part 91 if the logbook is built now.
+ * - `none`: not a flight (simulator and ground sessions are not operated under a rule).
+ */
+export type RuleStatus = 'stated' | 'decided' | 'open' | 'none';
 
 /** How a field of a pair got its value. `undecided` fields provisionally use side `a`. */
 export type SettledBy = 'equivalent' | 'pair' | 'bulk' | 'undecided';
@@ -200,6 +223,7 @@ export interface ResolvedPair {
   record: SourceRecord;
   /** Id of the entry this pair becomes. */
   entryId: string;
+  rule: RuleStatus;
   /**
    * The stored decision that was applied, if any. It may have been made against an earlier
    * version of one of the two rows; `amendPairDecision` re-keys it to the current rows.
@@ -214,6 +238,8 @@ export interface ResolvedOrphan {
   /** Undecided orphans are provisionally kept. */
   action: 'keep' | 'drop' | 'undecided';
   entryId: string;
+  /** `none` also for an entry that is left out. */
+  rule: RuleStatus;
 }
 
 export interface Resolution {
@@ -223,6 +249,8 @@ export interface Resolution {
   orphans: ResolvedOrphan[];
   /** What is still to decide. All zero means the merged logbook is final. */
   open: { matches: number; fields: number; orphans: number };
+  /** Flights whose operating rule is still `open`. */
+  openRules: number;
   /** Decisions that applied to nothing in these two files (their rows changed or went). */
   stale: Decision[];
 }

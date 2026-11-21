@@ -116,6 +116,20 @@
   font: 600 var(--fs-l) / 1.3 var(--font-ui);
 }
 
+.settings-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group .section-title {
+  margin-top: 0;
+  padding: 0;
+}
+
 .lede {
   color: var(--muted);
 }

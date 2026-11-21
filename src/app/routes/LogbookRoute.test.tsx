@@ -186,7 +186,7 @@ describe('Logbook screen', () => {
     expect(within(detail).getByText('N700SK · CRJ-700 · KAAA–KBBB')).toBeVisible();
     expect(within(detail).getByText('Bombardier CL-600-2C10')).toBeVisible();
     expect(within(detail).getByText('ZZ 100')).toBeVisible();
-    expect(within(detail).getByText('Sam Sample')).toBeVisible();
+    expect(within(detail).getByText('Sample, Sam')).toBeVisible();
     expect(within(detail).getByText('Second in command', { selector: 'dd' })).toBeVisible();
     expect(within(detail).getByText('Night')).toBeVisible();
     expect(within(detail).getByText('3.3 h (3:20)')).toBeVisible();

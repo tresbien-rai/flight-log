@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5, first working audit screen.
+Last updated: milestone 5, audit screen with operating-rule proposals.
 
 ## State
 
@@ -38,7 +38,7 @@ Last updated: milestone 5, first working audit screen.
 | `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
 | `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers                                                                                          |
 | `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions), `importFile`, `loadAudit` / `writeMainBook`, lazy airport loader             |
-| `src/app`             | React screens: shell, import, ledger, entry detail, audit                                                                                     |
+| `src/app`             | React screens: shell, import, ledger, entry detail, audit, settings                                                                           |
 | `scripts`             | `profile`, `audit`, `validate`, `build:airports` command-line tools                                                                           |
 | `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
 | `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
@@ -113,15 +113,16 @@ Core:
   only one pair of exports (2026-11-17) has been seen. The pilot expects LogTen not to write
   anything that changes per export. Check it when the next exports arrive: the audit screen
   lists decisions that no longer match anything.
-- The operating rule defaults to Part 91 where the source does not state it; the inference
-  and confirmation step (DESIGN §7.4) is not built. About 120 airline legs are unmarked.
+- In the two imported books the operating rule still defaults to Part 91 where the source
+  does not state it. In the merged logbook it is proposed and confirmed on the audit screen.
 - Night time is taken from the source as typed. Computing it from times and position
   (DESIGN §5) is not built, so there is no independent check on it beyond "not more than total".
 - `totalSource` is always `typed` after import, even when clock times agree with the total.
 - Aircraft types are created one per source type code (`C172`, `C-172S`). Mapping both apps'
   spellings onto one type list (DESIGN §7.5) is not built, so the two books do not share types.
   The merged logbook uses LogTen's type code wherever LogTen knows the tail.
-- People are keyed by a normalised name; near-duplicates are not merged.
+- People are keyed by the words of their name in any order. Different spellings of one
+  person (7 people in the real exports) are still separate people and show as crew differences.
 - No export (DESIGN §9), no experience report (§8), no Drive sync (§3.3).
 - `npm audit` reports vulnerabilities in dev dependencies; not triaged.
 
@@ -144,24 +145,28 @@ Done:
    merged, rules for whole groups, a filterable list, per-field choice (either app, both, or a
    typed value), pairing confirmation, keep / leave out for one-app-only entries, removal of
    stale decisions, and "Build my logbook".
+5. **Operating-rule proposals** (`src/core/reconcile/rules.ts`, DESIGN §7.4), confirmed by
+   group or per flight on the audit screen.
+6. **Names**: given and family names stored separately, a Settings screen with the name
+   order, and crew compared person by person.
 
 What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) show:
 
 - 1,770 pairs, 21 of them below an exact match; 44 one-app-only entries (43 simulator
   sessions in ForeFlight, 1 ground session in LogTen).
-- With no decisions about 7,000 fields are open. The rounding rule and the blank-in-one-app
-  rule leave 378 fields on 286 flights: crew 98, route 45, landings 40, remarks 37,
-  approaches 26, day takeoffs 24, night 21, passengers 20, actual instrument 15, and a few
-  each of the rest.
+- With no decisions about 5,300 fields are open. The rounding rule and the blank-in-one-app
+  rule leave 358 fields on about 270 flights: crew 78 (roles that contradict, or a name spelt
+  two ways), route 45, landings 40, remarks 37, approaches 26, day takeoffs 24, night 21,
+  passengers 20, actual instrument 15, and a few each of the rest.
+- 1,142 flights have no operating rule in either app: 116 CRJ legs from 2 Dec 2022 to
+  15 Jul 2023 (proposed Part 121; marking starts the next day) and 1,026 piston flights
+  (proposed Part 91).
 - Parsing both files takes about 0.3 s and applying decisions about 0.1 s on a laptop.
 
 Next, in order:
 
-5. **Pairing by hand** on the audit screen, and keyboard movement through the list.
-6. **Operating-rule proposals** (DESIGN §7.4), grouped for bulk confirmation. Today a rule
-   stated by only one app is a blank-in-one-app difference and follows that rule; legs
-   unmarked in both apps still default to Part 91.
-7. **Type mapping** onto one type list (DESIGN §7.5).
-8. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
+7. **Pairing by hand** on the audit screen, and keyboard movement through the list.
+8. **Type mapping** onto one type list (DESIGN §7.5).
+9. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 
 Open questions for the pilot are listed in DESIGN §12.

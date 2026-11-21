@@ -21,7 +21,7 @@ import {
   type TrainingDevice,
 } from '../model';
 import { instantAfter, localDateOf, minutesBetween, resolveUtcClock } from '../time/zone';
-import { clean } from './normalize';
+import { clean, nameKey, parseName } from './normalize';
 import type { ImportResult, SourceAircraft, SourceRecord } from './types';
 
 export interface ConversionNote {
@@ -87,18 +87,6 @@ const OVERRIDE_KEYS: readonly OverrideKey[] = [
 
 function typeIdOf(a: SourceAircraft): string {
   return clean(a.typeCode) ?? 'unknown';
-}
-
-/** Lower-case "given family" key; "Family; Given" and "Family, Given" are reordered. */
-function personKey(name: string): string {
-  let n = name;
-  const m = /[;,]/.exec(n);
-  if (m && m.index !== undefined) {
-    const family = n.slice(0, m.index);
-    const given = n.slice(m.index + 1);
-    n = `${given} ${family}`;
-  }
-  return n.replace(/\./g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 function isValidDate(date: string): boolean {
@@ -397,10 +385,13 @@ export function toLogbook(
 
     const crew: CrewMember[] = [];
     for (const p of rec.people) {
-      const key = personKey(p.name);
+      const key = nameKey(p.name);
       if (key === '') continue;
       const personId = `p:${key}`;
-      if (!people.has(personId)) people.set(personId, { id: personId, name: p.name });
+      if (!people.has(personId)) {
+        const { given, family } = parseName(p.name);
+        people.set(personId, { id: personId, name: p.name, givenName: given, familyName: family });
+      }
       if (!crew.some((m) => m.personId === personId && m.role === p.role)) {
         crew.push({ personId, role: p.role });
       }

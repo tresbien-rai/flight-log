@@ -3,10 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router';
 import {
   amendPairDecision,
   decisionKey,
+  proposeRules,
+  ruleDecisions,
   type Decision,
   type DecisionField,
   type PairDecision,
   type ResolvedOrphan,
+  type RuleProposal,
 } from '@core/reconcile';
 import { writeMainBook, type Audit } from '@storage/index';
 import { AuditDetail, type DetailActions } from '../components/AuditDetail';
@@ -14,7 +17,15 @@ import { AuditOverview, type OverviewActions } from '../components/AuditOverview
 import { useAirports } from '../hooks/useAirports';
 import { useAudit } from '../hooks/useAudit';
 import { useMediaQuery, WIDE_QUERY } from '../hooks/useMediaQuery';
-import { auditItems, fieldLabel, isOpen, SIDE_LABEL, tierText, type AuditItem } from '../lib/audit';
+import {
+  auditItems,
+  fieldLabel,
+  isOpen,
+  proposalTitle,
+  SIDE_LABEL,
+  tierText,
+  type AuditItem,
+} from '../lib/audit';
 import { BOOK_LABELS } from '../lib/books';
 import { formatInt, shortDate } from '../lib/format';
 import { useStore } from '../store/StoreProvider';
@@ -90,7 +101,15 @@ function AuditScreen({ audit }: { audit: Audit }) {
   const [building, setBuilding] = useState(false);
   const [failure, setFailure] = useState<string>();
 
+  /** Set while the list shows the flights of one operating-rule proposal. */
+  const [group, setGroup] = useState<{ title: string; ids: ReadonlySet<string> }>();
+
   const items = useMemo(() => auditItems(audit.resolution), [audit.resolution]);
+  const groupItems = useMemo(
+    () => (group ? auditItems(audit.resolution, group.ids) : undefined),
+    [audit.resolution, group],
+  );
+  const proposals = useMemo(() => proposeRules(audit.resolution, audit), [audit]);
   const openItems = useMemo(() => items.filter(isOpen), [items]);
   const fieldsInPlay = useMemo(() => {
     const counts = new Map<DecisionField, number>();
@@ -101,6 +120,7 @@ function AuditScreen({ audit }: { audit: Audit }) {
   }, [openItems]);
 
   const visible = useMemo(() => {
+    if (groupItems) return groupItems;
     let list =
       show === 'open' ? openItems : show === 'decided' ? items.filter((i) => i.touched) : items;
     if (fieldFilter !== '') {
@@ -109,9 +129,14 @@ function AuditScreen({ audit }: { audit: Audit }) {
       );
     }
     return list;
-  }, [items, openItems, show, fieldFilter]);
+  }, [items, openItems, show, fieldFilter, groupItems]);
 
-  const selected = selectedId === undefined ? undefined : items.find((i) => i.id === selectedId);
+  const selected =
+    selectedId === undefined
+      ? undefined
+      : (groupItems?.find((i) => i.id === selectedId) ??
+        items.find((i) => i.id === selectedId) ??
+        auditItems(audit.resolution, new Set([selectedId]))[0]);
   const open = (id: string) => void navigate(`/audit/${encodeURIComponent(id)}`);
   const close = useCallback(() => void navigate('/audit'), [navigate]);
 
@@ -143,7 +168,18 @@ function AuditScreen({ audit }: { audit: Audit }) {
   };
   const put = (decisions: Decision[]) => write(store.putDecisions(decisions));
 
+  const setRules = (
+    entries: readonly string[],
+    rule: Parameters<OverviewActions['setRules']>[1],
+  ) => {
+    if (rule === undefined) write(store.removeDecisions(entries.map((entry) => `rule:${entry}`)));
+    else put(ruleDecisions(entries, rule, now()));
+  };
+
   const detailActions: DetailActions = {
+    setRule: (rule) => {
+      if (selected) setRules([selected.anchor], rule);
+    },
     setField: (pair, field, choice) =>
       put([amendPairDecision(pair, { fields: { [field]: choice } }, now())]),
     setMatch: (pair, match) => {
@@ -185,6 +221,11 @@ function AuditScreen({ audit }: { audit: Audit }) {
         put([{ kind: 'bulk', pattern, choice, decidedAt: now(), ...(field ? { field } : {}) }]);
       }
     },
+    setRules,
+    showFlights: (proposal: RuleProposal) => {
+      setGroup({ title: proposalTitle(proposal), ids: new Set(proposal.entryIds) });
+      setLimit(PAGE);
+    },
     removeStale: () => write(store.removeDecisions(audit.resolution.stale.map(decisionKey))),
     build: () => {
       setBuilding(true);
@@ -218,6 +259,7 @@ function AuditScreen({ audit }: { audit: Audit }) {
   const overview = (
     <AuditOverview
       audit={audit}
+      proposals={proposals}
       main={main}
       building={building}
       canBuild={airports.status !== 'loading'}
@@ -237,49 +279,58 @@ function AuditScreen({ audit }: { audit: Audit }) {
       <div className={`audit-body${selectedId !== undefined ? ' has-selection' : ''}`}>
         <div className="audit-list-col">
           {wide ? null : overview}
-          <div className="audit-filters">
-            <div className="segmented" role="group" aria-label="Show">
-              {(
-                [
-                  ['open', `To do (${formatInt(openIds.length)})`],
-                  ['decided', 'Decided by you'],
-                  ['all', 'All'],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className="btn btn-toggle"
-                  aria-pressed={show === value}
-                  onClick={() => {
-                    setShow(value);
+          {group ? (
+            <div className="audit-filters">
+              <span className="audit-group-title">{group.title}</span>
+              <button type="button" className="btn" onClick={() => setGroup(undefined)}>
+                Back to differences
+              </button>
+            </div>
+          ) : (
+            <div className="audit-filters">
+              <div className="segmented" role="group" aria-label="Show">
+                {(
+                  [
+                    ['open', `To do (${formatInt(openIds.length)})`],
+                    ['decided', 'Decided by you'],
+                    ['all', 'All'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className="btn btn-toggle"
+                    aria-pressed={show === value}
+                    onClick={() => {
+                      setShow(value);
+                      setLimit(PAGE);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="field audit-field-filter">
+                <span>Difference in</span>
+                <select
+                  className="input"
+                  value={fieldFilter}
+                  onChange={(event) => {
+                    setFieldFilter(event.target.value);
                     setLimit(PAGE);
                   }}
                 >
-                  {label}
-                </button>
-              ))}
+                  <option value="">Anything</option>
+                  {fieldsInPlay.map(([field, count]) => (
+                    <option key={field} value={field}>
+                      {fieldLabel(field)} ({count})
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <label className="field audit-field-filter">
-              <span>Difference in</span>
-              <select
-                className="input"
-                value={fieldFilter}
-                onChange={(event) => {
-                  setFieldFilter(event.target.value);
-                  setLimit(PAGE);
-                }}
-              >
-                <option value="">Anything</option>
-                {fieldsInPlay.map(([field, count]) => (
-                  <option key={field} value={field}>
-                    {fieldLabel(field)} ({count})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {undecidedOrphans.length > 1 && show === 'open' && fieldFilter === '' ? (
+          )}
+          {!group && undecidedOrphans.length > 1 && show === 'open' && fieldFilter === '' ? (
             <div className="audit-bulk-orphans">
               <span>{formatInt(undecidedOrphans.length)} entries are in one app only.</span>
               <button type="button" className="btn" onClick={keepAll}>
@@ -330,6 +381,8 @@ function AuditScreen({ audit }: { audit: Audit }) {
                 actions={detailActions}
                 onClose={close}
                 sheet={!wide}
+                nameOrder={shell.nameOrder}
+                rule={selected.rule}
               />
               {upNext ? (
                 <div className="audit-next">

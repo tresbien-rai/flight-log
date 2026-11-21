@@ -585,15 +585,15 @@ describe('crew and people', () => {
       ]),
     );
     expect(logbook.people).toEqual([
-      { id: 'p:pat example', name: 'Example; Pat' },
-      { id: 'p:sam q sample', name: 'Sam  Q. Sample' },
+      { id: 'p:example pat', name: 'Example; Pat', givenName: 'Pat', familyName: 'Example' },
+      { id: 'p:q sam sample', name: 'Sam  Q. Sample', givenName: 'Sam Q.', familyName: 'Sample' },
     ]);
     expect(logbook.entries[0]!.crew).toEqual([
-      { personId: 'p:pat example', role: 'instructor' },
-      { personId: 'p:pat example', role: 'student' },
-      { personId: 'p:sam q sample', role: 'passenger' },
+      { personId: 'p:example pat', role: 'instructor' },
+      { personId: 'p:example pat', role: 'student' },
+      { personId: 'p:q sam sample', role: 'passenger' },
     ]);
-    expect(logbook.entries[1]!.crew).toEqual([{ personId: 'p:pat example', role: 'instructor' }]);
+    expect(logbook.entries[1]!.crew).toEqual([{ personId: 'p:example pat', role: 'instructor' }]);
   });
 });
 
