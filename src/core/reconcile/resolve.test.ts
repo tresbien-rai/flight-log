@@ -136,10 +136,45 @@ describe('resolve: nothing decided', () => {
     expect(r.open.fields).toBe(1);
   });
 
-  it('does not settle systematic differences without a rule', () => {
+  it('settles rounding automatically, keeping the more precise value', () => {
     const r = run([A({ durations: { total: 77 } })], [B({ durations: { total: 78 } })]);
-    expect(r.pairs[0]!.fields[0]).toMatchObject({ pattern: 'rounding', by: 'undecided' });
+    expect(r.pairs[0]!.fields[0]).toMatchObject({
+      pattern: 'rounding',
+      by: 'automatic',
+      choice: 'a',
+    });
+    expect(r.open.fields).toBe(0);
+    const other = run([A({ durations: { total: 78 } })], [B({ durations: { total: 77 } })]);
+    expect(other.pairs[0]!.record.durations.total).toBe(77);
+  });
+
+  it('takes the only flight number automatically, from either app', () => {
+    const r = run([A({ flightNumber: 'DL 3939' })], [B()]);
+    expect(r.pairs[0]!.fields[0]).toMatchObject({
+      field: 'flightNumber',
+      by: 'automatic',
+      choice: 'a',
+    });
+    expect(r.pairs[0]!.record.flightNumber).toBe('DL 3939');
+    expect(run([A()], [B({ flightNumber: 'DL 3939' })]).pairs[0]!.record.flightNumber).toBe(
+      'DL 3939',
+    );
+    expect(r.open.fields).toBe(0);
+  });
+
+  it('leaves other blank-in-one-app differences for a rule', () => {
+    const r = run([A()], [B({ clock: { out: 900 } })]);
+    expect(r.pairs[0]!.fields[0]).toMatchObject({ pattern: 'missing-a', by: 'undecided' });
     expect(r.open.fields).toBe(1);
+  });
+
+  it('lets a rule or a pair choice override an automatic setting', () => {
+    const x = A({ durations: { total: 77 } });
+    const y = B({ durations: { total: 78 } });
+    expect(run([x], [y], [bulk('rounding', 'b')]).pairs[0]!.record.durations.total).toBe(78);
+    const first = run([x], [y]);
+    const r = run([x], [y], [decide(first, { 'durations.total': 'b' })]);
+    expect(r.pairs[0]!.fields[0]).toMatchObject({ by: 'pair', choice: 'b' });
   });
 
   it('settles equivalent differences itself, keeping the side that says more', () => {
@@ -213,7 +248,7 @@ describe('resolve: bulk rules', () => {
   it('limits a field rule to its field', () => {
     const r = run([a()], [b()], [bulk('rounding', 'b', 'durations.night')]);
     expect(r.pairs[0]!.record.durations).toEqual({ total: 77, night: 78 });
-    expect(r.open.fields).toBe(1);
+    expect(r.pairs[0]!.fields.map((f) => f.by)).toEqual(['automatic', 'bulk']);
   });
 
   it('takes the side that has a value for missing-a and missing-b', () => {

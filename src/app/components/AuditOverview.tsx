@@ -4,6 +4,8 @@ import type { BulkChoice, DecisionField, DiffPattern, RuleProposal } from '@core
 import type { Audit, BookInfo } from '@storage/index';
 import {
   auditTotals,
+  automaticCounts,
+  fixList,
   decidedRules,
   fieldLabel,
   findBulk,
@@ -13,6 +15,7 @@ import {
   RULE_TEXT,
   SIDE_LABEL,
 } from '../lib/audit';
+import type { DisplayPrefs } from '../lib/prefs';
 import { formatInt } from '../lib/format';
 
 export interface OverviewActions {
@@ -25,6 +28,7 @@ export interface OverviewActions {
   setRules: (entries: readonly string[], rule: OperatingRule | undefined) => void;
   showFlights: (proposal: RuleProposal) => void;
   removeStale: () => void;
+  showFixes: () => void;
   build: () => void;
   openMain: () => void;
 }
@@ -92,6 +96,7 @@ function Proposal({ proposal, actions }: { proposal: RuleProposal; actions: Over
 export function AuditOverview({
   audit,
   proposals,
+  prefs,
   main,
   building,
   canBuild,
@@ -99,6 +104,7 @@ export function AuditOverview({
 }: {
   audit: Audit;
   proposals: readonly RuleProposal[];
+  prefs: DisplayPrefs;
   main: BookInfo | undefined;
   building: boolean;
   canBuild: boolean;
@@ -122,8 +128,8 @@ export function AuditOverview({
   );
   const outOfDate = main !== undefined && lastDecision > main.updatedAt;
 
-  const rounding = findBulk(decisions, 'rounding');
-  const roundingStat = stat('bulk:rounding:*');
+  const automatic = automaticCounts(resolution);
+  const fixes = fixList(resolution, prefs);
   const blankOn = findBulk(decisions, 'missing-a') && findBulk(decisions, 'missing-b');
   const blankStat = {
     open: stat('bulk:missing-a:*').open + stat('bulk:missing-b:*').open,
@@ -265,22 +271,23 @@ export function AuditOverview({
           A rule settles every difference of one kind at once. A choice you make on a single flight
           always wins over a rule.
         </p>
+        {automatic.rounding + automatic.flightNumber > 0 ? (
+          <p className="detail-note">
+            Settled without asking:{' '}
+            {[
+              automatic.rounding > 0
+                ? `${plural(automatic.rounding, 'rounding difference', 'rounding differences')}, keeping the more precise time (${SIDE_LABEL.a} keeps hundredths of an hour, ${SIDE_LABEL.b} tenths)`
+                : undefined,
+              automatic.flightNumber > 0
+                ? `${plural(automatic.flightNumber, 'flight number', 'flight numbers')} only one app has, taking that one`
+                : undefined,
+            ]
+              .filter(Boolean)
+              .join('; ')}
+            .
+          </p>
+        ) : null}
         <ul className="rule-list">
-          <li className="rule">
-            <div className="rule-text">
-              <h3 className="rule-title">Rounding</h3>
-              <p className="muted">
-                {SIDE_LABEL.b} rounds each time to a tenth of an hour. Keep the more precise value.
-              </p>
-            </div>
-            {toggle(
-              rounding !== undefined,
-              roundingStat,
-              () => actions.setBulk('rounding', undefined, 'more-precise'),
-              () => actions.setBulk('rounding', undefined, undefined),
-              'Rounding',
-            )}
-          </li>
           <li className="rule">
             <div className="rule-text">
               <h3 className="rule-title">Blank in one app</h3>
@@ -365,6 +372,30 @@ export function AuditOverview({
           </div>
         </section>
       ) : null}
+
+      <section aria-labelledby="audit-fixes">
+        <h2 id="audit-fixes" className="detail-heading">
+          Fix in the apps
+        </h2>
+        {fixes.a.length + fixes.b.length === 0 ? (
+          <p className="detail-note">
+            Nothing yet. When you choose one app’s value over the other’s, the app you overruled is
+            listed here with what to change.
+          </p>
+        ) : (
+          <>
+            <p>
+              {plural(fixes.a.length, 'entry', 'entries')} to correct in {SIDE_LABEL.a},{' '}
+              {plural(fixes.b.length, 'entry', 'entries')} in {SIDE_LABEL.b}.
+            </p>
+            <div className="actions">
+              <button type="button" className="btn" onClick={actions.showFixes}>
+                Show what to fix
+              </button>
+            </div>
+          </>
+        )}
+      </section>
 
       <section aria-labelledby="audit-build">
         <h2 id="audit-build" className="detail-heading">

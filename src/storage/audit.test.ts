@@ -130,7 +130,8 @@ describe('loadAudit', () => {
       ['a', 'ground'],
       ['b', 'simulator'],
     ]);
-    expect(resolution.open).toEqual({ matches: 1, fields: 6, orphans: 2 });
+    // Rounding (four fields) is settled without asking.
+    expect(resolution.open).toEqual({ matches: 1, fields: 2, orphans: 2 });
   });
 
   it('applies stored decisions, and they survive a re-import of the same files', async () => {

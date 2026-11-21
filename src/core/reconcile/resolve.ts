@@ -380,6 +380,30 @@ function bulkChoice(
   return d.a % 6 !== 0 ? 'a' : 'b';
 }
 
+/**
+ * Differences settled without asking, by the pilot's standing choice:
+ * - rounding: the more precise value (LogTen keeps hundredths of an hour, ForeFlight tenths);
+ * - a flight number only one app has: that one (ForeFlight has no flight-number field).
+ */
+function automaticChoice(
+  field: DecisionField,
+  pattern: DiffPattern | undefined,
+  diffs: readonly FieldDiff[],
+): Side | undefined {
+  if (pattern === 'rounding') {
+    const side = bulkChoice(
+      { kind: 'bulk', pattern, choice: 'more-precise', decidedAt: '' },
+      field,
+      diffs,
+      undefined,
+    );
+    return side === 'both' ? undefined : side;
+  }
+  if (field === 'flightNumber' && pattern === 'missing-a') return 'b';
+  if (field === 'flightNumber' && pattern === 'missing-b') return 'a';
+  return undefined;
+}
+
 // --- resolve ---------------------------------------------------------------------------------
 
 interface WorkingPair {
@@ -525,6 +549,13 @@ export function resolve(
         if (choice && applyChoice(record, a, b, field, choice)) {
           resolved.by = 'bulk';
           resolved.choice = choice;
+        } else {
+          const auto = automaticChoice(field, cls.pattern, diffs);
+          if (auto) {
+            copyField(record, auto === 'a' ? a : b, field);
+            resolved.by = 'automatic';
+            resolved.choice = auto;
+          }
         }
       }
       if (resolved.by === 'undecided') open.fields++;

@@ -6,12 +6,12 @@ import type {
   ResolvedOrphan,
   ResolvedPair,
 } from '@core/reconcile';
-import type { NameOrder } from '@core/importers';
 import type { OperatingRule } from '@core/model';
 import type { RuleStatus } from '@core/reconcile';
 import {
   displayTyped,
   displayValue,
+  isShown,
   RULE_TEXT,
   suggestionText,
   fieldLabel,
@@ -22,6 +22,7 @@ import {
   TYPED_HINT,
   typedKind,
 } from '../lib/audit';
+import type { DisplayPrefs } from '../lib/prefs';
 import { longDate } from '../lib/format';
 
 export interface DetailActions {
@@ -38,6 +39,7 @@ const BY_TEXT: Record<ResolvedField['by'], string> = {
   pair: 'Your choice',
   bulk: 'Settled by a rule',
   equivalent: 'Same meaning',
+  automatic: 'Settled automatically',
 };
 
 function TypedInput({
@@ -92,20 +94,20 @@ function FieldCard({
   pair,
   field,
   actions,
-  nameOrder,
+  prefs,
 }: {
   pair: ResolvedPair;
   field: ResolvedField;
   actions: DetailActions;
-  nameOrder: NameOrder;
+  prefs: DisplayPrefs;
 }) {
   const name = fieldLabel(field.field);
   const choice = field.choice;
   const typed = typeof choice === 'object' ? choice.value : undefined;
   const canBoth = field.field === 'people' || field.field === 'remarks';
   const options: { value: 'a' | 'b' | 'both'; label: string; text: string }[] = [
-    { value: 'a', label: SIDE_LABEL.a, text: displayValue(pair.a, field.field, nameOrder) },
-    { value: 'b', label: SIDE_LABEL.b, text: displayValue(pair.b, field.field, nameOrder) },
+    { value: 'a', label: SIDE_LABEL.a, text: displayValue(pair.a, field.field, prefs) },
+    { value: 'b', label: SIDE_LABEL.b, text: displayValue(pair.b, field.field, prefs) },
   ];
   if (canBoth) options.push({ value: 'both', label: 'Both', text: 'Keep what each app has' });
 
@@ -187,7 +189,7 @@ export function AuditDetail({
   actions,
   onClose,
   sheet,
-  nameOrder,
+  prefs,
   rule,
 }: {
   pair?: ResolvedPair;
@@ -195,14 +197,15 @@ export function AuditDetail({
   actions: DetailActions;
   onClose: () => void;
   sheet: boolean;
-  nameOrder: NameOrder;
+  prefs: DisplayPrefs;
   /** Where this entry's operating rule comes from. */
   rule: RuleStatus;
 }) {
   const merged = pair?.record ?? orphan!.record;
   const record = pair?.a ?? orphan!.record;
-  const live = pair?.fields.filter((f) => f.class !== 'equivalent' || f.by === 'pair') ?? [];
-  const same = (pair?.fields.length ?? 0) - live.length;
+  const live = pair?.fields.filter(isShown) ?? [];
+  const automatic = pair?.fields.filter((f) => f.by === 'automatic' && !isShown(f)) ?? [];
+  const same = (pair?.fields.length ?? 0) - live.length - automatic.length;
 
   return (
     <aside className="detail" aria-label="Audit detail">
@@ -271,9 +274,17 @@ export function AuditDetail({
                   pair={pair}
                   field={field}
                   actions={actions}
-                  nameOrder={nameOrder}
+                  prefs={prefs}
                 />
               ))}
+              {automatic.length > 0 ? (
+                <p className="detail-note">
+                  Settled automatically: {automatic.map((f) => fieldLabel(f.field)).join(', ')}
+                  {automatic.every((f) => f.pattern === 'rounding')
+                    ? ' (the more precise value is kept).'
+                    : '.'}
+                </p>
+              ) : null}
               {same > 0 ? (
                 <p className="detail-note">
                   {same} more {same === 1 ? 'field is' : 'fields are'} written differently but mean

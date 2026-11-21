@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5, takeoffs and landings decided together with suggestions.
+Last updated: milestone 5, automatic rounding and flight numbers, fix list.
 
 ## State
 
@@ -145,15 +145,20 @@ Done:
    merged, rules for whole groups, a filterable list, per-field choice (either app, both, or a
    typed value), pairing confirmation, keep / leave out for one-app-only entries, removal of
    stale decisions, and "Build my logbook".
-5. **Takeoffs and landings** decided as one unit, with a suggested side and a "take the
+5. **Settled without asking** (pilot's choice): rounding keeps the more precise value, and a
+   flight number only one app has is taken. On the real exports that is 2,590 rounding
+   differences and 735 flight numbers; with no rules applied 1,983 fields stay open.
+6. **Fix in the apps**: the rows each app needs corrected to match the pilot's decisions.
+7. **Flight numbers** stored as `DL3939`, shown with or without a space per Settings.
+8. **Takeoffs and landings** decided as one unit, with a suggested side and a "take the
    suggested one" rule (`src/core/reconcile/suggest.ts`, sun position in
    `src/core/time/sun.ts`). On the real exports 48 flights differ and 31 get a suggestion.
    Decisions stored earlier under the old fields (`landings`, `counts.dayTakeoffs`,
    `counts.nightTakeoffs`) no longer apply and those flights are asked about again.
-6. **Operating-rule proposals** (`src/core/reconcile/rules.ts`, DESIGN §7.4), confirmed by
+9. **Operating-rule proposals** (`src/core/reconcile/rules.ts`, DESIGN §7.4), confirmed by
    group or per flight on the audit screen.
-7. **Names**: given and family names stored separately, a Settings screen with the name
-   order, and crew compared person by person.
+10. **Names**: given and family names stored separately, a Settings screen with the name
+    order, and crew compared person by person.
 
 What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) show:
 
@@ -170,14 +175,16 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
 
 Next, in order:
 
-8. **Pairing by hand** on the audit screen, and keyboard movement through the list.
-9. **Type mapping** onto one type list (DESIGN §7.5).
-10. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
+11. **Pairing by hand** on the audit screen, and keyboard movement through the list.
+12. **Type mapping** onto one type list (DESIGN §7.5).
+13. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 
 ## Asked for, for manual entry (milestone 9)
 
-DESIGN §5 records two requests from the pilot: a PF tick that logs one takeoff and one landing
-by day or night from the off/on times (the sun calculation already exists), and go-arounds or
-missed approaches as ticks with a short reason each.
+DESIGN §5 records three requests from the pilot: a PF tick that logs one takeoff and one
+landing by day or night from the off/on times (the sun calculation already exists);
+go-arounds or missed approaches as ticks with a short reason each; and an employment
+timeline whose present employer supplies defaults, including the carrier's own code and a
+choice of marketing partner so only the four digits of a flight number are typed.
 
 Open questions for the pilot are listed in DESIGN §12.

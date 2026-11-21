@@ -197,8 +197,12 @@ export type Decision = PairDecision | OrphanDecision | BulkDecision | RuleDecisi
  */
 export type RuleStatus = 'stated' | 'decided' | 'open' | 'none';
 
-/** How a field of a pair got its value. `undecided` fields provisionally use side `a`. */
-export type SettledBy = 'equivalent' | 'pair' | 'bulk' | 'undecided';
+/**
+ * How a field of a pair got its value. `undecided` fields provisionally use side `a`.
+ * `automatic`: a difference the pilot asked never to be asked about (see AUTOMATIC in
+ * resolve.ts); a pair's own choice or a bulk rule still wins over it.
+ */
+export type SettledBy = 'equivalent' | 'automatic' | 'pair' | 'bulk' | 'undecided';
 
 /**
  * Why one side looks right:

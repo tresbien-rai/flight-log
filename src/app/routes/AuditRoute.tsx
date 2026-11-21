@@ -14,6 +14,7 @@ import {
 import { writeMainBook, type Audit } from '@storage/index';
 import { AuditDetail, type DetailActions } from '../components/AuditDetail';
 import { AuditOverview, type OverviewActions } from '../components/AuditOverview';
+import { FixList } from '../components/FixList';
 import { useAirports } from '../hooks/useAirports';
 import { useAudit } from '../hooks/useAudit';
 import { useMediaQuery, WIDE_QUERY } from '../hooks/useMediaQuery';
@@ -33,6 +34,8 @@ import { useShell } from './shellContext';
 
 type Show = 'open' | 'decided' | 'all';
 const PAGE = 150;
+/** The detail pane's address for the fix list; entry ids all start with `main:`. */
+const FIXES = 'fixes';
 const now = () => new Date().toISOString();
 
 function rejectedDecisionFor(audit: Audit, orphan: ResolvedOrphan): PairDecision | undefined {
@@ -226,6 +229,7 @@ function AuditScreen({ audit }: { audit: Audit }) {
       setGroup({ title: proposalTitle(proposal), ids: new Set(proposal.entryIds) });
       setLimit(PAGE);
     },
+    showFixes: () => void navigate(`/audit/${FIXES}`),
     removeStale: () => write(store.removeDecisions(audit.resolution.stale.map(decisionKey))),
     build: () => {
       setBuilding(true);
@@ -260,6 +264,7 @@ function AuditScreen({ audit }: { audit: Audit }) {
     <AuditOverview
       audit={audit}
       proposals={proposals}
+      prefs={shell.prefs}
       main={main}
       building={building}
       canBuild={airports.status !== 'loading'}
@@ -364,7 +369,14 @@ function AuditScreen({ audit }: { audit: Audit }) {
           )}
         </div>
         <div className="audit-detail-col">
-          {selectedId === undefined ? (
+          {selectedId === FIXES ? (
+            <FixList
+              resolution={audit.resolution}
+              prefs={shell.prefs}
+              onClose={close}
+              sheet={!wide}
+            />
+          ) : selectedId === undefined ? (
             wide ? (
               <div className="detail">
                 <div className="detail-scroll">
@@ -381,7 +393,7 @@ function AuditScreen({ audit }: { audit: Audit }) {
                 actions={detailActions}
                 onClose={close}
                 sheet={!wide}
-                nameOrder={shell.nameOrder}
+                prefs={shell.prefs}
                 rule={selected.rule}
               />
               {upNext ? (

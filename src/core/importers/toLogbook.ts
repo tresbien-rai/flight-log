@@ -21,7 +21,7 @@ import {
   type TrainingDevice,
 } from '../model';
 import { instantAfter, localDateOf, minutesBetween, resolveUtcClock } from '../time/zone';
-import { clean, nameKey, parseName } from './normalize';
+import { canonicalFlightNumber, clean, nameKey, parseName } from './normalize';
 import type { ImportResult, SourceAircraft, SourceRecord } from './types';
 
 export interface ConversionNote {
@@ -406,7 +406,7 @@ export function toLogbook(
       ...times,
       totalSource: 'typed',
       rule,
-      flightNumber: rec.flightNumber,
+      flightNumber: canonicalFlightNumber(rec.flightNumber),
       from: rec.from,
       to: rec.to,
       route: rec.route,

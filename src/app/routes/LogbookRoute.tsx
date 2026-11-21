@@ -93,7 +93,7 @@ function BookScreen({ bookId }: { bookId: BookId }) {
 }
 
 function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) {
-  const { nameOrder } = useShell();
+  const { prefs } = useShell();
   const analysis = useLogbookAnalysis(logbook);
   const { index, findings } = analysis;
   const controls = useFilterState();
@@ -224,6 +224,7 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
             </div>
           ) : (
             <Ledger
+              flightNumberStyle={prefs.flightNumberStyle}
               label={`${BOOK_LABELS[bookId]} entries`}
               items={items}
               totals={totals}
@@ -257,7 +258,7 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
               findings={findings.get(selected.id) ?? []}
               onClose={close}
               sheet={sheet}
-              nameOrder={nameOrder}
+              prefs={prefs}
             />
           ) : (
             <aside className="detail" aria-label="Entry detail">
