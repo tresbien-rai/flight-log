@@ -7,11 +7,13 @@ import type {
   DiffPattern,
   Resolution,
   ResolvedOrphan,
+  RuleProposal,
+  RuleStatus,
   ResolvedPair,
   Side,
 } from '@core/reconcile';
 import { formatDecimal, parseDuration } from '@core/time/duration';
-import { formatHours, formatInt } from './format';
+import { formatHours, formatInt, shortDate } from './format';
 import { writtenName } from './names';
 
 export const SIDE_LABEL: Record<Side, string> = { a: 'LogTen', b: 'ForeFlight' };
@@ -133,7 +135,7 @@ const clock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}Z`;
 const hours = (minutes: number) => formatDecimal(minutes, 2);
 const yesNo = (v: boolean) => (v ? 'Yes' : 'No');
-const RULE_TEXT: Record<string, string> = {
+export const RULE_TEXT: Record<string, string> = {
   '91': 'Part 91',
   '121': 'Part 121',
   '135': 'Part 135',
@@ -248,14 +250,20 @@ export interface AuditItem {
   openItself: boolean;
   /** The pilot has decided something here (not counting bulk rules). */
   touched: boolean;
+  /** Where the operating rule comes from, and the key a rule decision for it uses. */
+  rule: RuleStatus;
+  anchor: string;
 }
 
-/** Everything worth showing: pairs that differ in meaning or need confirming, and all orphans. */
-export function auditItems(resolution: Resolution): AuditItem[] {
+/**
+ * Everything worth showing: pairs that differ in meaning or need confirming, and all orphans.
+ * `only` instead lists exactly those entries, whether or not anything differs.
+ */
+export function auditItems(resolution: Resolution, only?: ReadonlySet<string>): AuditItem[] {
   const items: AuditItem[] = [];
   for (const pair of resolution.pairs) {
     const live = pair.fields.filter((f) => f.class !== 'equivalent' || f.by === 'pair');
-    if (live.length === 0 && pair.match === 'exact') continue;
+    if (only ? !only.has(pair.entryId) : live.length === 0 && pair.match === 'exact') continue;
     items.push({
       id: pair.entryId,
       date: pair.a.date,
@@ -266,9 +274,12 @@ export function auditItems(resolution: Resolution): AuditItem[] {
       openItself: pair.match === 'unconfirmed',
       touched:
         live.some((f) => f.by === 'pair') || pair.match === 'confirmed' || pair.match === 'manual',
+      rule: pair.rule,
+      anchor: pair.fa,
     });
   }
   for (const orphan of resolution.orphans) {
+    if (only && !only.has(orphan.entryId)) continue;
     items.push({
       id: orphan.entryId,
       date: orphan.record.date,
@@ -278,12 +289,57 @@ export function auditItems(resolution: Resolution): AuditItem[] {
       openFields: [],
       openItself: orphan.action === 'undecided',
       touched: orphan.action !== 'undecided',
+      rule: orphan.rule,
+      anchor: orphan.fingerprint,
     });
   }
   return items.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
 }
 
 export const isOpen = (item: AuditItem): boolean => item.openItself || item.openFields.length > 0;
+
+// --- operating rule -------------------------------------------------------------------------
+
+const ENGINE_WORDS: Record<string, string> = {
+  piston: 'piston-engine',
+  turbine: 'turbine',
+  'no aircraft': 'no-aircraft',
+};
+
+/** `66 CRJ7 flights, 2 Dec 2022 – 15 Jul 2023` */
+export function proposalTitle(p: RuleProposal): string {
+  const n = p.entries.length;
+  const what = p.basis === 'airline' ? p.label : (ENGINE_WORDS[p.label] ?? p.label);
+  const span = p.from === p.to ? shortDate(p.from) : `${shortDate(p.from)} – ${shortDate(p.to)}`;
+  return `${formatInt(n)} ${what} ${n === 1 ? 'flight' : 'flights'}, ${span}`;
+}
+
+/** Why the rule is proposed, in a sentence. */
+export function proposalReason(p: RuleProposal): string {
+  const n = p.entries.length;
+  const of = (count: number) =>
+    count === n ? (n === 1 ? 'it has' : 'all have') : `${formatInt(count)} have`;
+  if (p.basis === 'airline') {
+    return `Turbine aircraft; ${of(p.evidence.flightNumber)} a flight number, ${of(p.evidence.sicTime)} SIC time, ${of(p.evidence.crewNamed)} a captain or first officer named.`;
+  }
+  return p.label === 'turbine'
+    ? 'Turbine aircraft, but no flight number with SIC time or flight-deck crew.'
+    : 'Nothing marks these as airline flying.';
+}
+
+/** How many merged flights the pilot gave each rule. */
+export function decidedRules(resolution: Resolution): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  const add = (rule: string | undefined, anchor: string) => {
+    if (rule === undefined) return;
+    const list = out.get(rule);
+    if (list) list.push(anchor);
+    else out.set(rule, [anchor]);
+  };
+  for (const p of resolution.pairs) if (p.rule === 'decided') add(p.record.rule, p.fa);
+  for (const o of resolution.orphans) if (o.rule === 'decided') add(o.record.rule, o.fingerprint);
+  return out;
+}
 
 // --- rules -----------------------------------------------------------------------------------
 

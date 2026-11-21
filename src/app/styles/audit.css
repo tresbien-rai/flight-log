@@ -424,3 +424,28 @@
     padding-left: 0;
   }
 }
+
+.audit-group-title {
+  flex: 1 1 200px;
+  align-self: center;
+  font-weight: 600;
+}
+
+.rule-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rule-pick .input {
+  grid-column: 1 / -1;
+  max-width: 240px;
+}
+
+.choice-by.is-open {
+  color: var(--warning);
+  font-weight: 600;
+}

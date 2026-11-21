@@ -7,9 +7,12 @@ import type {
   ResolvedPair,
 } from '@core/reconcile';
 import type { NameOrder } from '@core/importers';
+import type { OperatingRule } from '@core/model';
+import type { RuleStatus } from '@core/reconcile';
 import {
   displayTyped,
   displayValue,
+  RULE_TEXT,
   fieldLabel,
   parseTyped,
   routeText,
@@ -24,6 +27,7 @@ export interface DetailActions {
   setField: (pair: ResolvedPair, field: DecisionField, choice: FieldChoice | undefined) => void;
   setMatch: (pair: ResolvedPair, match: 'confirmed' | 'rejected' | null) => void;
   setOrphan: (orphan: ResolvedOrphan, action: 'keep' | 'drop' | undefined) => void;
+  setRule: (rule: OperatingRule | undefined) => void;
   /** Present when this orphan came from a pairing the pilot rejected. */
   undoReject?: (orphan: ResolvedOrphan) => void;
 }
@@ -173,6 +177,7 @@ export function AuditDetail({
   onClose,
   sheet,
   nameOrder,
+  rule,
 }: {
   pair?: ResolvedPair;
   orphan?: ResolvedOrphan;
@@ -180,7 +185,10 @@ export function AuditDetail({
   onClose: () => void;
   sheet: boolean;
   nameOrder: NameOrder;
+  /** Where this entry's operating rule comes from. */
+  rule: RuleStatus;
 }) {
+  const merged = pair?.record ?? orphan!.record;
   const record = pair?.a ?? orphan!.record;
   const live = pair?.fields.filter((f) => f.class !== 'equivalent' || f.by === 'pair') ?? [];
   const same = (pair?.fields.length ?? 0) - live.length;
@@ -261,6 +269,34 @@ export function AuditDetail({
                   the same.
                 </p>
               ) : null}
+            </section>
+          ) : null}
+
+          {rule === 'open' || rule === 'decided' ? (
+            <section aria-label="Operating rule" className="rule-pick">
+              <label htmlFor="entry-rule" className="choice-name">
+                Operating rule
+              </label>
+              <span className={`choice-by${rule === 'open' ? ' is-open' : ''}`}>
+                {rule === 'open' ? 'Neither app says · counts as Part 91' : 'Your choice'}
+              </span>
+              <select
+                id="entry-rule"
+                className="input"
+                value={rule === 'decided' ? (merged.rule ?? '') : ''}
+                onChange={(event) =>
+                  actions.setRule(
+                    event.target.value === '' ? undefined : (event.target.value as OperatingRule),
+                  )
+                }
+              >
+                <option value="">Not marked</option>
+                {(['91', '121', '135', 'other'] as const).map((r) => (
+                  <option key={r} value={r}>
+                    {RULE_TEXT[r]}
+                  </option>
+                ))}
+              </select>
             </section>
           ) : null}
 

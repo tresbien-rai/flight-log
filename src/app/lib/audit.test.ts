@@ -2,10 +2,13 @@ import foreflightText from '../../../fixtures/pair/foreflight.csv?raw';
 import logtenText from '../../../fixtures/pair/logten.txt?raw';
 import { describe, expect, it } from 'vitest';
 import { COLUMN_PRESETS, importForeFlight, importLogTen } from '@core/importers';
-import { matchRecords, resolve, type Decision } from '@core/reconcile';
+import { matchRecords, proposeRules, resolve, ruleDecisions, type Decision } from '@core/reconcile';
 import {
   auditItems,
   auditTotals,
+  decidedRules,
+  proposalReason,
+  proposalTitle,
   displayTyped,
   displayValue,
   fieldLabel,
@@ -207,5 +210,42 @@ describe('list, rules and totals', () => {
       ]),
     );
     expect(dropped.find((r) => r.label === 'Simulator')!.merged).toBe('0.0');
+  });
+});
+
+describe('operating rule', () => {
+  const resolution = resolve(match, []);
+  const proposals = proposeRules(resolution, { a, b });
+
+  it('describes a proposal and its evidence', () => {
+    expect(proposals.map(proposalTitle)).toEqual([
+      '3 piston-engine flights, 1 Mar 2024 – 5 Mar 2024',
+      '1 turbine flight, 4 Mar 2024',
+    ]);
+    expect(proposalReason(proposals[0]!)).toBe('Nothing marks these as airline flying.');
+    expect(proposalReason(proposals[1]!)).toMatch(/^Turbine aircraft, but no flight number/);
+    expect(
+      proposalReason({
+        ...proposals[1]!,
+        basis: 'airline',
+        entries: ['x', 'y'],
+        evidence: { flightNumber: 2, sicTime: 1, crewNamed: 2 },
+      }),
+    ).toBe(
+      'Turbine aircraft; all have a flight number, 1 have SIC time, all have a captain or first officer named.',
+    );
+  });
+
+  it('lists a group’s flights even when nothing differs, and counts what the pilot marked', () => {
+    const ids = new Set(proposals[0]!.entryIds);
+    const items = auditItems(resolution, ids);
+    expect(items.map((i) => [i.date, i.rule])).toEqual([
+      ['2024-03-01', 'open'],
+      ['2024-03-02', 'open'],
+      ['2024-03-05', 'open'],
+    ]);
+    const decided = resolve(match, ruleDecisions([items[0]!.anchor, items[2]!.anchor], '135', AT));
+    expect([...decidedRules(decided)]).toEqual([['135', [items[0]!.anchor, items[2]!.anchor]]]);
+    expect(decidedRules(resolution).size).toBe(0);
   });
 });

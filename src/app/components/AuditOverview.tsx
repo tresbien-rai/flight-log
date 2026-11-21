@@ -1,6 +1,18 @@
-import type { BulkChoice, DecisionField, DiffPattern } from '@core/reconcile';
+import { useState } from 'react';
+import type { OperatingRule } from '@core/model';
+import type { BulkChoice, DecisionField, DiffPattern, RuleProposal } from '@core/reconcile';
 import type { Audit, BookInfo } from '@storage/index';
-import { auditTotals, fieldLabel, findBulk, ruleStats, SIDE_LABEL } from '../lib/audit';
+import {
+  auditTotals,
+  decidedRules,
+  fieldLabel,
+  findBulk,
+  proposalReason,
+  proposalTitle,
+  ruleStats,
+  RULE_TEXT,
+  SIDE_LABEL,
+} from '../lib/audit';
 import { formatInt } from '../lib/format';
 
 export interface OverviewActions {
@@ -9,6 +21,9 @@ export interface OverviewActions {
     field: DecisionField | undefined,
     choice: BulkChoice | undefined,
   ) => void;
+  /** Gives those entries the rule; `undefined` takes the pilot's rule away again. */
+  setRules: (entries: readonly string[], rule: OperatingRule | undefined) => void;
+  showFlights: (proposal: RuleProposal) => void;
   removeStale: () => void;
   build: () => void;
   openMain: () => void;
@@ -23,14 +38,66 @@ const FIELD_RULES: { field: DecisionField; both: boolean }[] = [
 
 const plural = (n: number, one: string, many: string) => `${formatInt(n)} ${n === 1 ? one : many}`;
 
+const RULES: OperatingRule[] = ['91', '121', '135', 'other'];
+
+function Proposal({ proposal, actions }: { proposal: RuleProposal; actions: OverviewActions }) {
+  const [rule, setRule] = useState<OperatingRule>(proposal.rule);
+  const title = proposalTitle(proposal);
+  const id = `proposal-${proposal.id}`;
+  return (
+    <li className="rule">
+      <div className="rule-text">
+        <h3 className="rule-title">{title}</h3>
+        <p className="muted">{proposalReason(proposal)}</p>
+      </div>
+      <div className="rule-state">
+        <label htmlFor={id} className="visually-hidden">
+          Operating rule for {title}
+        </label>
+        <select
+          id={id}
+          className="input"
+          value={rule}
+          onChange={(event) => setRule(event.target.value as OperatingRule)}
+        >
+          {RULES.map((r) => (
+            <option key={r} value={r}>
+              {RULE_TEXT[r]}
+              {r === proposal.rule ? ' (suggested)' : ''}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => actions.setRules(proposal.entries, rule)}
+          aria-label={`Mark ${title} as ${RULE_TEXT[rule]}`}
+        >
+          Mark all
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => actions.showFlights(proposal)}
+          aria-label={`Show ${title}`}
+        >
+          Show
+        </button>
+      </div>
+    </li>
+  );
+}
+
 export function AuditOverview({
   audit,
+  proposals,
   main,
   building,
   canBuild,
   actions,
 }: {
   audit: Audit;
+  proposals: readonly RuleProposal[];
   main: BookInfo | undefined;
   building: boolean;
   canBuild: boolean;
@@ -41,7 +108,8 @@ export function AuditOverview({
   const stats = ruleStats(resolution);
   const stat = (key: string) => stats.get(key) ?? { open: 0, settled: 0 };
   const totals = auditTotals(audit.a.records, audit.b.records, resolution);
-  const openCount = open.fields + open.matches + open.orphans;
+  const openCount = open.fields + open.matches + open.orphans + resolution.openRules;
+  const decided = [...decidedRules(resolution)].sort((x, y) => (x[0] < y[0] ? -1 : 1));
 
   const lastDecision = decisions.reduce(
     (latest, d) => (d.decidedAt > latest ? d.decidedAt : latest),
@@ -94,7 +162,7 @@ export function AuditOverview({
         {openCount === 0 ? (
           <p role="status">Everything is decided.</p>
         ) : (
-          <ul className="open-list" role="status">
+          <ul className="open-list" aria-labelledby="audit-progress">
             <li>
               <span className="num">{formatInt(open.fields)}</span> differences between the two apps
             </li>
@@ -104,6 +172,10 @@ export function AuditOverview({
             <li>
               <span className="num">{formatInt(open.orphans)}</span> entries that are in one app
               only
+            </li>
+            <li>
+              <span className="num">{formatInt(resolution.openRules)}</span> flights without an
+              operating rule
             </li>
           </ul>
         )}
@@ -142,6 +214,43 @@ export function AuditOverview({
           </p>
         ) : null}
       </section>
+
+      {proposals.length > 0 || decided.length > 0 ? (
+        <section aria-labelledby="audit-oprule">
+          <h2 id="audit-oprule" className="detail-heading">
+            Operating rule
+          </h2>
+          {proposals.length > 0 ? (
+            <p className="detail-note">
+              Neither app says which rule these flights were flown under. Until you mark them they
+              count as Part 91.
+            </p>
+          ) : null}
+          <ul className="rule-list">
+            {proposals.map((proposal) => (
+              <Proposal key={proposal.id} proposal={proposal} actions={actions} />
+            ))}
+            {decided.map(([rule, entries]) => (
+              <li className="rule" key={rule}>
+                <div className="rule-text">
+                  <h3 className="rule-title">Marked {RULE_TEXT[rule] ?? rule} by you</h3>
+                  <p className="muted">{plural(entries.length, 'flight', 'flights')}.</p>
+                </div>
+                <div className="rule-state">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => actions.setRules(entries, undefined)}
+                    aria-label={`Undo marking ${plural(entries.length, 'flight', 'flights')} as ${RULE_TEXT[rule] ?? rule}`}
+                  >
+                    Undo
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section aria-labelledby="audit-rules">
         <h2 id="audit-rules" className="detail-heading">

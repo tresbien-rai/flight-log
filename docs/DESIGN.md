@@ -350,7 +350,7 @@ interface TrainingDevice { id: string; name: string; level: 'FFS' | 'FTD' | 'AAT
 
 ### 4.4 People, operators, airports
 
-- **People** are records (name, optional employee number), referenced by entries with a role. Imports arrive with three name formats ("Last; First", "Last, First", "First Last"); the importer normalises and proposes merges rather than creating three people.
+- **People** are records with given and family names stored separately (plus the name as first written), referenced by entries with a role. A person is identified by the words of the name in any order, so `Example; Pat`, `Example, Pat` and `Pat Example` are one person. Names are shown last name first by default; Settings switches to first name first. Imports arrive with three name formats ("Last; First", "Last, First", "First Last"); the importer normalises and proposes merges rather than creating three people.
 - **Operators** (an airline, a flight school) carry defaults: rule, usual seat, flight-number prefix. They exist mainly to drive profiles and filters.
 - **Airports** ship as a bundled read-only table (ident, IATA, name, lat/long, time zone), used for ident equivalence (`LAX` = `KLAX`), local dates, distance (cross-country checks) and day/night calculation. The pilot can add private strips.
 
@@ -469,11 +469,15 @@ A table of pairs, filterable by difference class, field, year, aircraft type and
 
 As built: the list of flights to review sits beside either an overview (what is open, totals, rules, the build button) or one flight. On a narrow screen the overview sits above the list and a flight opens as a full-screen sheet. The list shows only flights that differ in meaning, need their pairing confirmed, or are in one app only; it filters by "to do", "decided by you" and by the field that differs. Rules for whole groups are: rounding (keep the more precise), blank in one app (take what is there), and, for remarks, crew and route only, one choice for every real difference in that field, because those never change a total. "My logbook" is written only when the pilot presses the build button; it may be built while things are open.
 
-Two comparisons were loosened after seeing the real exports: remarks compare without case and punctuation, and remarks that contain the other app's whole text count as the other app missing something (ForeFlight comments carry the flight number); routes compare by waypoint, whatever the separators.
+Crew are compared person by person: the same people where one app gives someone more roles (LogTen lists one person as both PIC and instructor; ForeFlight holds one role each) are the same crew written differently, and the merged entry keeps the fuller list.
+
+Two more comparisons were loosened after seeing the real exports: remarks compare without case and punctuation, and remarks that contain the other app's whole text count as the other app missing something (ForeFlight comments carry the flight number); routes compare by waypoint, whatever the separators.
 
 ### 7.4 Filling in the operating rule
 
 Neither source records the rule reliably. On import, the app proposes one per entry from the evidence (explicit flag → airline type + SIC + flight number or crew → otherwise 91), groups the proposals ("118 unflagged CRJ legs, 2022-12 to 2023-07: mark as Part 121?"), and applies them only when confirmed.
+
+As built (`src/core/reconcile/rules.ts`): a merged flight is _stated_ when either app marks it, and otherwise _open_. Open flights are grouped into proposals. Airline evidence is a turbine aircraft, a flight number, and either SIC time or a named PIC or SIC; those flights are proposed as Part 121, one group per type code. Everything else is proposed as Part 91, grouped by engine kind, so a jet with no airline evidence stands apart. Confirming a group stores one decision per flight (keyed by the flight's LogTen row), not a standing rule, so a flight that first appears in a later export is proposed again. One flight can be marked differently from its group. Simulator and ground sessions are not operated under a rule and are never asked about. The rules stay 91 / 121 / 135 / other: instruction under Part 141 is still operated under Part 91.
 
 ### 7.5 Aircraft on import
 
@@ -565,7 +569,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1). Milestone 5 has a working audit screen (§7.2, §7.3); pairing by hand, operating-rule proposals and type mapping are still to come.
+Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1). Milestone 5 has a working audit screen with operating-rule proposals (§7.2–§7.4); pairing by hand and type mapping are still to come.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
