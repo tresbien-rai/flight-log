@@ -17,6 +17,7 @@ import {
   type Decision,
   type MatchResult,
   type Resolution,
+  type ResolveOptions,
 } from '@core/reconcile';
 import type { BookInfo, LogbookStore } from './types';
 
@@ -32,6 +33,8 @@ export interface Audit {
   match: MatchResult;
   decisions: Decision[];
   resolution: Resolution;
+  /** What the resolution was made with; kept so a re-resolve uses the same. */
+  options: ResolveOptions;
 }
 
 export type AuditOutcome = { ok: true; audit: Audit } | { ok: false; missing: SourceId[] };
@@ -42,7 +45,10 @@ function parse(source: SourceId, text: string): ImportResult {
 }
 
 /** Parses both stored files, pairs them and applies every stored decision. */
-export async function loadAudit(store: LogbookStore): Promise<AuditOutcome> {
+export async function loadAudit(
+  store: LogbookStore,
+  options: ResolveOptions = {},
+): Promise<AuditOutcome> {
   const [fileA, fileB, decisions] = await Promise.all([
     store.loadSourceFile(AUDIT_SIDES.a),
     store.loadSourceFile(AUDIT_SIDES.b),
@@ -57,12 +63,22 @@ export async function loadAudit(store: LogbookStore): Promise<AuditOutcome> {
   const a = parse(AUDIT_SIDES.a, fileA.text);
   const b = parse(AUDIT_SIDES.b, fileB.text);
   const match = matchRecords(a.records, b.records);
-  return { ok: true, audit: { a, b, match, decisions, resolution: resolve(match, decisions) } };
+  return {
+    ok: true,
+    audit: { a, b, match, decisions, options, resolution: resolve(match, decisions, options) },
+  };
 }
 
-/** The same audit with a different set of decisions; nothing is parsed or matched again. */
-export function reresolve(audit: Audit, decisions: Decision[]): Audit {
-  return { ...audit, decisions, resolution: resolve(audit.match, decisions) };
+/**
+ * The same audit with a different set of decisions or options; nothing is parsed or matched
+ * again.
+ */
+export function reresolve(
+  audit: Audit,
+  decisions: Decision[],
+  options: ResolveOptions = audit.options,
+): Audit {
+  return { ...audit, decisions, options, resolution: resolve(audit.match, decisions, options) };
 }
 
 /**

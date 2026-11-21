@@ -38,7 +38,7 @@ const rounding: Decision = {
 describe('labels and values', () => {
   it('names fields for people', () => {
     expect(fieldLabel('durations.night')).toBe('Night');
-    expect(fieldLabel('landings')).toBe('Landings');
+    expect(fieldLabel('takeoffsLandings')).toBe('Takeoffs and landings');
     expect(fieldLabel('custom.somethingNew')).toBe('somethingNew');
   });
 
@@ -48,7 +48,31 @@ describe('labels and values', () => {
     expect(displayValue(night, 'durations.solo')).toBe('—');
     expect(displayValue(night, 'tail')).toBe('N101AB');
     expect(displayValue(night, 'rule')).toBe('—');
-    expect(displayValue(night, 'landings')).toBe('day 1');
+    expect(displayValue(night, 'takeoffsLandings')).toBe('Takeoffs 1 day · Landings 1 day');
+    expect(
+      displayValue(
+        {
+          ...night,
+          counts: { dayTakeoffs: 2, nightTakeoffs: 1, dayLandings: 4, nightLandings: 1 },
+        },
+        'takeoffsLandings',
+      ),
+    ).toBe('Takeoffs 2 day, 1 night · Landings 4 day, 1 night · 3 takeoffs for 5 landings');
+    expect(
+      displayValue(
+        {
+          ...night,
+          counts: {
+            dayTakeoffs: 3,
+            dayFullStopLandings: 1,
+            nightFullStopLandings: 0,
+            allLandings: 3,
+          },
+        },
+        'takeoffsLandings',
+      ),
+    ).toBe('Takeoffs 3 day · Landings 3 day (2 touch-and-go)');
+    expect(displayValue({ ...night, counts: {} }, 'takeoffsLandings')).toBe('None');
     expect(displayValue(night, 'approaches')).toBe('—');
     expect(displayValue(night, 'people')).toBe('—');
     expect(displayValue(night, 'kind')).toBe('Flight');
@@ -101,7 +125,14 @@ describe('typed values', () => {
     expect(typedKind('custom.flag')).toBeUndefined();
     expect(typedKind('tail')).toBe('text');
     expect(typedKind('date')).toBe('date');
-    for (const field of ['landings', 'approaches', 'people', 'rule', 'kind', 'pilotFlying']) {
+    for (const field of [
+      'takeoffsLandings',
+      'approaches',
+      'people',
+      'rule',
+      'kind',
+      'pilotFlying',
+    ]) {
       expect(typedKind(field)).toBeUndefined();
     }
   });
@@ -132,7 +163,7 @@ describe('typed values', () => {
     ['date', '2023-02-29'],
     ['date', '3/1/2024'],
     ['tail', '  '],
-    ['landings', '3'],
+    ['takeoffsLandings', '3'],
   ] as const)('rejects %s "%s"', (field, text) => {
     expect(parseTyped(field, text)).toBeUndefined();
   });

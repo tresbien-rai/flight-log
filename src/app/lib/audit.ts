@@ -9,9 +9,11 @@ import type {
   ResolvedOrphan,
   RuleProposal,
   RuleStatus,
+  SuggestReason,
   ResolvedPair,
   Side,
 } from '@core/reconcile';
+import { tolCounts } from '@core/reconcile';
 import { formatDecimal, parseDuration } from '@core/time/duration';
 import { formatHours, formatInt, shortDate } from './format';
 import { writtenName } from './names';
@@ -32,7 +34,7 @@ const FIELD_LABELS: Record<string, string> = {
   people: 'Crew',
   remarks: 'Remarks',
   approaches: 'Approaches',
-  landings: 'Landings',
+  takeoffsLandings: 'Takeoffs and landings',
   'clock.out': 'Out',
   'clock.off': 'Off',
   'clock.on': 'On',
@@ -52,8 +54,6 @@ const FIELD_LABELS: Record<string, string> = {
   'durations.dualGiven': 'Dual given',
   'durations.simulator': 'Simulator',
   'durations.groundTraining': 'Ground training',
-  'counts.dayTakeoffs': 'Day takeoffs',
-  'counts.nightTakeoffs': 'Night takeoffs',
   'counts.holds': 'Holds',
   'counts.goArounds': 'Go-arounds',
   'custom.dualGivenPPL': 'Dual given, private',
@@ -147,20 +147,33 @@ const KIND_TEXT: Record<string, string> = {
   ground: 'Ground training',
 };
 
-function landingsText(r: SourceRecord): string {
-  const c = r.counts;
-  const parts: string[] = [];
-  const add = (label: string, n: number | undefined) => {
-    if (n !== undefined) parts.push(`${label} ${n}`);
-  };
-  add('day', c.dayLandings);
-  add('night', c.nightLandings);
-  add('day full-stop', c.dayFullStopLandings);
-  add('night full-stop', c.nightFullStopLandings);
-  add('full-stop', c.fullStopLandings);
-  add('touch-and-go', c.touchAndGoes);
-  add('all', c.allLandings);
-  return parts.length > 0 ? parts.join(' · ') : BLANK;
+const dayNight = (day: number, night: number): string =>
+  day > 0 && night > 0 ? `${day} day, ${night} night` : night > 0 ? `${night} night` : `${day} day`;
+
+/** `Takeoffs 2 day · Landings 5 day (2 touch-and-go)`, with a warning when they do not add up. */
+export function takeoffsLandingsText(r: SourceRecord): string {
+  const t = tolCounts(r);
+  const takeoffs = t.dayTakeoffs + t.nightTakeoffs;
+  if (takeoffs === 0 && t.landings === 0) return 'None';
+  const tg = t.touchAndGoes ? ` (${t.touchAndGoes} touch-and-go)` : '';
+  const text = `Takeoffs ${dayNight(t.dayTakeoffs, t.nightTakeoffs)} · Landings ${dayNight(t.dayLandings, t.nightLandings)}${tg}`;
+  return takeoffs === t.landings
+    ? text
+    : `${text} · ${takeoffs} takeoffs for ${t.landings} landings`;
+}
+
+const SUGGEST_TEXT: Record<SuggestReason, string> = {
+  'pilot-flying-day':
+    'You were pilot flying, and the times put the takeoff and landing in daylight.',
+  'pilot-flying-night':
+    'You were pilot flying, and the times put the takeoff or landing at night (from an hour after sunset).',
+  'pilot-monitoring': 'You were pilot monitoring, so there should be none.',
+  balanced: 'Its takeoffs and landings add up; the other app’s do not.',
+  'pilot-flying': 'You were pilot flying, and the other app has none.',
+};
+
+export function suggestionText(reason: SuggestReason): string {
+  return SUGGEST_TEXT[reason];
 }
 
 /** A typed value shown the way a side's value would be. */
@@ -178,8 +191,8 @@ export function displayValue(
   nameOrder: NameOrder = 'family-first',
 ): string {
   switch (field) {
-    case 'landings':
-      return landingsText(r);
+    case 'takeoffsLandings':
+      return takeoffsLandingsText(r);
     case 'approaches':
       return r.approaches.length === 0
         ? BLANK

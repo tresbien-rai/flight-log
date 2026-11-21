@@ -103,10 +103,12 @@ describe('decision helpers', () => {
     );
   });
 
-  it('groups the landing counts into one decision field', () => {
-    expect(decisionField('counts.allLandings')).toBe('landings');
-    expect(decisionField('counts.nightLandings')).toBe('landings');
-    expect(decisionField('counts.dayTakeoffs')).toBe('counts.dayTakeoffs');
+  it('groups takeoffs and landings into one decision field', () => {
+    expect(decisionField('counts.allLandings')).toBe('takeoffsLandings');
+    expect(decisionField('counts.nightLandings')).toBe('takeoffsLandings');
+    expect(decisionField('counts.dayTakeoffs')).toBe('takeoffsLandings');
+    expect(decisionField('counts.nightTakeoffs')).toBe('takeoffsLandings');
+    expect(decisionField('counts.holds')).toBe('counts.holds');
     expect(decisionField('durations.night')).toBe('durations.night');
   });
 });
@@ -332,15 +334,16 @@ describe('resolve: pair decisions', () => {
     });
     const y = B({ counts: { dayFullStopLandings: 1, nightFullStopLandings: 0, allLandings: 3 } });
     const first = run([x], [y]);
-    const landings = first.pairs[0]!.fields.find((f) => f.field === 'landings')!;
-    expect(landings.diffs.length).toBeGreaterThan(1);
-    expect(landings.class).toBe('real');
-    const r = run([x], [y], [decide(first, { landings: 'b' })]);
+    const tol = first.pairs[0]!.fields.find((f) => f.field === 'takeoffsLandings')!;
+    expect(tol.diffs.length).toBeGreaterThan(1);
+    expect(tol.class).toBe('real');
+    expect(first.pairs[0]!.fields.map((f) => f.field)).toEqual(['takeoffsLandings']);
+    const r = run([x], [y], [decide(first, { takeoffsLandings: 'b' })]);
+    // Takeoffs come across with the landings: b has none, so none are left.
     expect(r.pairs[0]!.record.counts).toEqual({
       dayFullStopLandings: 1,
       nightFullStopLandings: 0,
       allLandings: 3,
-      dayTakeoffs: 3,
     });
   });
 
@@ -359,14 +362,14 @@ describe('resolve: pair decisions', () => {
     ['date', { value: '2025-06-23' }, (r: SourceRecord) => r.date, '2025-06-23'],
     ['rule', { value: '121' }, (r: SourceRecord) => r.rule, '121'],
     ['pilotFlying', { value: true }, (r: SourceRecord) => r.pilotFlying, true],
-    ['counts.dayTakeoffs', { value: 2 }, (r: SourceRecord) => r.counts.dayTakeoffs, 2],
+    ['counts.holds', { value: 2 }, (r: SourceRecord) => r.counts.holds, 2],
     ['custom.passengerCount', { value: 50 }, (r: SourceRecord) => r.custom.passengerCount, 50],
     ['remarks', { value: '' }, (r: SourceRecord) => r.remarks, undefined],
   ] as const)('accepts a typed %s', (field, choice, read, expected) => {
     const x = A({
       rule: '91',
       pilotFlying: false,
-      counts: { dayTakeoffs: 1 },
+      counts: { holds: 1 },
       custom: { passengerCount: 40 },
       remarks: 'one',
     });
@@ -375,7 +378,7 @@ describe('resolve: pair decisions', () => {
       date: '2025-06-23',
       rule: '135',
       pilotFlying: true,
-      counts: { dayTakeoffs: 3 },
+      counts: { holds: 3 },
       custom: { passengerCount: 60 },
       remarks: 'two',
       clock: {},
@@ -396,7 +399,7 @@ describe('resolve: pair decisions', () => {
     ['rule', { value: '61' }],
     ['tail', { value: '  ' }],
     ['pilotFlying', { value: 'yes' }],
-    ['landings', { value: 3 }],
+    ['takeoffsLandings', { value: 3 }],
     ['approaches', { value: 'ILS' }],
     ['people', { value: 'Pat' }],
     ['kind', { value: 'ground' }],

@@ -99,7 +99,8 @@ export type Side = 'a' | 'b';
 
 /**
  * What a decision is made about. Usually a diff field (`durations.night`, `tail`), but the
- * landing counts are decided together as `landings`, because the two apps count landings
+ * takeoffs and landings are decided together as `takeoffsLandings`, because every takeoff
+ * needs a landing and because the two apps count landings
  * differently and the individual numbers cannot be mixed.
  */
 export type DecisionField = string;
@@ -108,7 +109,7 @@ export type DecisionField = string;
  * - `a` / `b`: that side's value.
  * - `both`: `people` (union) and `remarks` (both texts) only.
  * - `{ value }`: typed by the pilot, in the record's own units (minutes for durations and
- *   clock times). Not available for `kind`, `localFlight`, `landings`, `approaches`, `people`.
+ *   clock times). Not available for `kind`, `localFlight`, `takeoffsLandings`, `approaches`, `people`.
  */
 export type FieldChoice = Side | 'both' | { value: string | number | boolean };
 
@@ -152,8 +153,9 @@ export interface OrphanDecision {
  * - `more-precise`: for `rounding`, the value that is not a whole tenth of an hour.
  * - `present`: for `missing-a` / `missing-b`, the side that has a value.
  * - `both`: for `people` and `remarks`, as in FieldChoice.
+ * - `suggested`: the side `ResolvedField.suggested` names; fields with no suggestion stay open.
  */
-export type BulkChoice = Side | 'both' | 'more-precise' | 'present';
+export type BulkChoice = Side | 'both' | 'more-precise' | 'present' | 'suggested';
 
 /**
  * One rule for every difference of a pattern, optionally limited to one field. A pair's own
@@ -198,9 +200,28 @@ export type RuleStatus = 'stated' | 'decided' | 'open' | 'none';
 /** How a field of a pair got its value. `undecided` fields provisionally use side `a`. */
 export type SettledBy = 'equivalent' | 'pair' | 'bulk' | 'undecided';
 
+/**
+ * Why one side looks right:
+ * - `pilot-flying-day` / `pilot-flying-night`: a pilot-flying leg with clock times; this side
+ *   has one takeoff and one landing, each by day or night as the sun was (night counted from
+ *   an hour after sunset to an hour before sunrise, as for currency).
+ * - `pilot-monitoring`: a pilot-monitoring leg; this side has no takeoffs or landings.
+ * - `balanced`: only this side has as many takeoffs as landings.
+ * - `pilot-flying`: a pilot-flying leg; only this side has any takeoffs or landings.
+ */
+export type SuggestReason =
+  'pilot-flying-day' | 'pilot-flying-night' | 'pilot-monitoring' | 'balanced' | 'pilot-flying';
+
+export interface Suggestion {
+  side: Side;
+  reason: SuggestReason;
+}
+
 export interface ResolvedField {
   field: DecisionField;
-  /** The diffs behind it (one, except for `landings`). */
+  /** The side that looks right, when the evidence points one way. */
+  suggested?: Suggestion;
+  /** The diffs behind it (several for `takeoffsLandings`). */
   diffs: FieldDiff[];
   class: DiffClass;
   pattern?: DiffPattern;

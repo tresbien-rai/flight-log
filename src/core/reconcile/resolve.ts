@@ -8,7 +8,9 @@
  */
 import type { SourceCounts, SourcePerson, SourceRecord } from '../importers';
 import { DURATION_FIELDS } from '../model';
+import type { AirportLookup } from '../airports/types';
 import { nameKey } from '../importers/normalize/names';
+import { suggestTakeoffsLandings } from './suggest';
 import { diffRecords } from './diff';
 import type {
   BulkDecision,
@@ -30,6 +32,7 @@ import type {
   RuleDecision,
   RuleStatus,
   Side,
+  Suggestion,
 } from './types';
 
 // --- fingerprints ----------------------------------------------------------------------------
@@ -88,14 +91,16 @@ export function decisionKey(d: Decision): string {
   }
 }
 
-const LANDING_DIFFS = new Set([
+const TOL_DIFFS = new Set([
+  'counts.dayTakeoffs',
+  'counts.nightTakeoffs',
   'counts.allLandings',
   'counts.fullStopLandings',
   'counts.nightLandings',
 ]);
 
 export function decisionField(diffField: string): DecisionField {
-  return LANDING_DIFFS.has(diffField) ? 'landings' : diffField;
+  return TOL_DIFFS.has(diffField) ? 'takeoffsLandings' : diffField;
 }
 
 export function diffSignature(diffs: readonly FieldDiff[]): string {
@@ -149,7 +154,9 @@ const TOP_LEVEL = new Set([
   'remarks',
 ]);
 
-const LANDING_KEYS: readonly (keyof SourceCounts)[] = [
+const TOL_KEYS: readonly (keyof SourceCounts)[] = [
+  'dayTakeoffs',
+  'nightTakeoffs',
   'dayLandings',
   'nightLandings',
   'dayFullStopLandings',
@@ -159,7 +166,7 @@ const LANDING_KEYS: readonly (keyof SourceCounts)[] = [
   'allLandings',
 ];
 
-const PLAIN_COUNTS = new Set(['dayTakeoffs', 'nightTakeoffs', 'holds', 'goArounds']);
+const PLAIN_COUNTS = new Set(['holds', 'goArounds']);
 const CLOCK_KEYS = new Set(['out', 'off', 'on', 'in', 'scheduledOut', 'scheduledIn']);
 const DURATION_KEYS = new Set<string>(DURATION_FIELDS);
 const RULES = new Set(['91', '121', '135', 'other']);
@@ -192,8 +199,8 @@ function split(field: string): [string | undefined, string] {
 
 /** Makes `target` say what `src` says about `field`. */
 function copyField(target: SourceRecord, src: SourceRecord, field: DecisionField): void {
-  if (field === 'landings') {
-    for (const key of LANDING_KEYS) put(target.counts, key, src.counts[key]);
+  if (field === 'takeoffsLandings') {
+    for (const key of TOL_KEYS) put(target.counts, key, src.counts[key]);
     return;
   }
   if (field === 'approaches') {
@@ -346,7 +353,7 @@ function settleEquivalent(
     if (b.people.length > target.people.length) copyField(target, b, field);
     return;
   }
-  if (field !== 'landings' && diffs.length === 1 && diffs[0]!.a === undefined) {
+  if (field !== 'takeoffsLandings' && diffs.length === 1 && diffs[0]!.a === undefined) {
     copyField(target, b, field);
   }
 }
@@ -355,8 +362,10 @@ function bulkChoice(
   rule: BulkDecision,
   field: DecisionField,
   diffs: readonly FieldDiff[],
+  suggested: Suggestion | undefined,
 ): Side | 'both' | undefined {
   if (rule.choice === 'a' || rule.choice === 'b') return rule.choice;
+  if (rule.choice === 'suggested') return suggested?.side;
   if (rule.choice === 'both') return field === 'people' || field === 'remarks' ? 'both' : undefined;
   if (rule.choice === 'present') {
     if (rule.pattern === 'missing-a') return 'b';
@@ -379,7 +388,16 @@ interface WorkingPair {
   tier: MatchTier | 'manual';
 }
 
-export function resolve(match: MatchResult, decisions: readonly Decision[]): Resolution {
+export interface ResolveOptions {
+  /** Lets takeoff and landing suggestions use day and night at the airports. */
+  airports?: AirportLookup;
+}
+
+export function resolve(
+  match: MatchResult,
+  decisions: readonly Decision[],
+  options: ResolveOptions = {},
+): Resolution {
   const fpA = fingerprintRecords([...match.pairs.map((p) => p.a), ...match.onlyA]);
   const fpB = fingerprintRecords([...match.pairs.map((p) => p.b), ...match.onlyB]);
   const recordA = new Map([...fpA].map(([rec, fp]) => [fp, rec]));
@@ -481,6 +499,10 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
       const cls = groupClass(diffs);
       const resolved: ResolvedField = { field, diffs, class: cls.class, by: 'undecided' };
       if (cls.pattern) resolved.pattern = cls.pattern;
+      if (field === 'takeoffsLandings' && cls.class !== 'equivalent') {
+        const suggested = suggestTakeoffsLandings(a, b, options.airports);
+        if (suggested) resolved.suggested = suggested;
+      }
 
       const mine = decision?.fields[field];
       if (
@@ -499,7 +521,7 @@ export function resolve(match: MatchResult, decisions: readonly Decision[]): Res
         const rule = cls.pattern
           ? (bulk.get(`bulk:${cls.pattern}:${field}`) ?? bulk.get(`bulk:${cls.pattern}:*`))
           : bulk.get(`bulk:real:${field}`);
-        const choice = rule ? bulkChoice(rule, field, diffs) : undefined;
+        const choice = rule ? bulkChoice(rule, field, diffs, resolved.suggested) : undefined;
         if (choice && applyChoice(record, a, b, field, choice)) {
           resolved.by = 'bulk';
           resolved.choice = choice;

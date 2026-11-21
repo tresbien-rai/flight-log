@@ -449,3 +449,17 @@
   color: var(--warning);
   font-weight: 600;
 }
+
+.choice-suggestion {
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--accent);
+  background: var(--select-bg);
+  font-size: var(--fs-s);
+}
+
+.choice-badge {
+  display: block;
+  color: var(--accent);
+  font-weight: 600;
+}

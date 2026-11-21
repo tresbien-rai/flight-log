@@ -13,6 +13,7 @@ import {
   displayTyped,
   displayValue,
   RULE_TEXT,
+  suggestionText,
   fieldLabel,
   parseTyped,
   routeText,
@@ -114,6 +115,11 @@ function FieldCard({
         <span className="choice-name">{name}</span>
         <span className="choice-by">{BY_TEXT[field.by]}</span>
       </legend>
+      {field.suggested ? (
+        <p className="choice-suggestion">
+          Suggested: {SIDE_LABEL[field.suggested.side]}. {suggestionText(field.suggested.reason)}
+        </p>
+      ) : null}
       <div className="choice-options">
         {options.map((option) => (
           <label key={option.value} className="choice-option">
@@ -123,7 +129,12 @@ function FieldCard({
               checked={choice === option.value}
               onChange={() => actions.setField(pair, field.field, option.value)}
             />
-            <span className="choice-side">{option.label}</span>
+            <span className="choice-side">
+              {option.label}
+              {field.suggested?.side === option.value ? (
+                <span className="choice-badge">Suggested</span>
+              ) : null}
+            </span>
             <span className="choice-value">{option.text}</span>
           </label>
         ))}

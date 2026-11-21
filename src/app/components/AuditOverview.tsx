@@ -30,10 +30,11 @@ export interface OverviewActions {
 }
 
 /** Fields whose real differences may be settled by one rule: they never change a total. */
-const FIELD_RULES: { field: DecisionField; both: boolean }[] = [
-  { field: 'remarks', both: true },
-  { field: 'people', both: true },
-  { field: 'route', both: false },
+const FIELD_RULES: { field: DecisionField; both: boolean; suggested: boolean }[] = [
+  { field: 'takeoffsLandings', both: false, suggested: true },
+  { field: 'remarks', both: true, suggested: false },
+  { field: 'people', both: true, suggested: false },
+  { field: 'route', both: false, suggested: false },
 ];
 
 const plural = (n: number, one: string, many: string) => `${formatInt(n)} ${n === 1 ? one : many}`;
@@ -107,6 +108,10 @@ export function AuditOverview({
   const { open } = resolution;
   const stats = ruleStats(resolution);
   const stat = (key: string) => stats.get(key) ?? { open: 0, settled: 0 };
+  const suggestedOpen = (field: DecisionField) =>
+    resolution.pairs.filter((p) =>
+      p.fields.some((f) => f.field === field && f.by === 'undecided' && f.suggested),
+    ).length;
   const totals = auditTotals(audit.a.records, audit.b.records, resolution);
   const openCount = open.fields + open.matches + open.orphans + resolution.openRules;
   const decided = [...decidedRules(resolution)].sort((x, y) => (x[0] < y[0] ? -1 : 1));
@@ -298,10 +303,11 @@ export function AuditOverview({
               'Blank in one app',
             )}
           </li>
-          {FIELD_RULES.map(({ field, both }) => {
+          {FIELD_RULES.map(({ field, both, suggested }) => {
             const rule = findBulk(decisions, 'real', field);
             const s = stat(`bulk:real:${field}`);
             if (!rule && s.open === 0) return null;
+            const withSuggestion = suggested ? suggestedOpen(field) : 0;
             const id = `rule-${field}`;
             return (
               <li className="rule" key={field}>
@@ -312,7 +318,9 @@ export function AuditOverview({
                   <p className="muted">
                     {rule
                       ? `Settles ${formatInt(s.settled)}.`
-                      : `${plural(s.open, 'flight', 'flights')}. This never changes a total.`}
+                      : suggested
+                        ? `${plural(s.open, 'flight', 'flights')}; ${formatInt(withSuggestion)} with a suggestion.`
+                        : `${plural(s.open, 'flight', 'flights')}. This never changes a total.`}
                   </p>
                 </div>
                 <div className="rule-state">
@@ -329,6 +337,7 @@ export function AuditOverview({
                     }
                   >
                     <option value="">Decide each one</option>
+                    {suggested ? <option value="suggested">Take the suggested one</option> : null}
                     <option value="a">Keep {SIDE_LABEL.a}’s</option>
                     <option value="b">Keep {SIDE_LABEL.b}’s</option>
                     {both ? <option value="both">Keep both</option> : null}

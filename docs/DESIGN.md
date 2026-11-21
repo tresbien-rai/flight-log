@@ -368,6 +368,11 @@ The entry form is not one form. A **profile** decides which fields are shown, wh
 | Derived     | total, night, landings day/night split                    | night if times given             | —                                 | —                          |
 | Hidden      | solo, dual                                                | flight number, pax               | flight number, pax                | airports, landings         |
 
+**Pilot flying and go-arounds** (asked for by the pilot, to build with manual entry, milestone 9):
+
+- A **PF** tick. When ticked, the entry gets one takeoff and one landing, each by day or by night from the off and on times at the departure and arrival airports (night counted from an hour after sunset to an hour before sunrise, 14 CFR 61.57(b); `isNightForLandings` in `src/core/time/sun.ts`). Without off/on times, out/in are used; without any times the pilot picks. The counts stay editable for pattern work and touch-and-goes. PM (unticked) means none.
+- **Go-arounds**, which other apps leave to the remarks: in the takeoffs-and-landings part of the form, a tick per go-around or missed approach that opens a short text field for the reason. Each is stored as an event (kind: go-around or missed approach; reason), and the existing `goArounds` count follows from them. Imported counts have no reasons and stay counts.
+
 Profiles are data, not code, so a new kind of flying (Part 135, a second airline) is a new profile, not a new screen. Night time and the day/night split of landings are computed from times and airport positions whenever those are known, and can be overridden.
 
 ---
@@ -468,6 +473,8 @@ How this is built (`src/core/reconcile/types.ts` holds the contract, `resolve.ts
 A table of pairs, filterable by difference class, field, year, aircraft type and rule. Selecting a pair shows the two rows side by side with differing fields highlighted, and the validation findings for each candidate value. A summary at the top shows grand totals per source and the running total of the merged logbook, so the pilot can see the numbers converge.
 
 As built: the list of flights to review sits beside either an overview (what is open, totals, rules, the build button) or one flight. On a narrow screen the overview sits above the list and a flight opens as a full-screen sheet. The list shows only flights that differ in meaning, need their pairing confirmed, or are in one app only; it filters by "to do", "decided by you" and by the field that differs. Rules for whole groups are: rounding (keep the more precise), blank in one app (take what is there), and, for remarks, crew and route only, one choice for every real difference in that field, because those never change a total. "My logbook" is written only when the pilot presses the build button; it may be built while things are open.
+
+**Takeoffs and landings are decided together.** Every takeoff needs a landing, so the choice is one unit (`takeoffsLandings`): both apps' day and night takeoffs and landings are shown side by side, with the touch-and-goes and a warning when a side's takeoffs and landings do not add up. Where the evidence points one way the screen suggests a side (`src/core/reconcile/suggest.ts`), in this order: on a pilot-flying leg with clock times, the side with exactly one takeoff and one landing, each by day or night as the sun was; on a pilot-monitoring leg, the side with none; the only side whose takeoffs and landings add up; on a pilot-flying leg, the only side with any. A rule "take the suggested one" settles every suggestion at once and leaves the rest open.
 
 Crew are compared person by person: the same people where one app gives someone more roles (LogTen lists one person as both PIC and instructor; ForeFlight holds one role each) are the same crew written differently, and the merged entry keeps the fuller list.
 

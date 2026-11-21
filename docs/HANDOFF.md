@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5, audit screen with operating-rule proposals.
+Last updated: milestone 5, takeoffs and landings decided together with suggestions.
 
 ## State
 
@@ -145,9 +145,14 @@ Done:
    merged, rules for whole groups, a filterable list, per-field choice (either app, both, or a
    typed value), pairing confirmation, keep / leave out for one-app-only entries, removal of
    stale decisions, and "Build my logbook".
-5. **Operating-rule proposals** (`src/core/reconcile/rules.ts`, DESIGN §7.4), confirmed by
+5. **Takeoffs and landings** decided as one unit, with a suggested side and a "take the
+   suggested one" rule (`src/core/reconcile/suggest.ts`, sun position in
+   `src/core/time/sun.ts`). On the real exports 48 flights differ and 31 get a suggestion.
+   Decisions stored earlier under the old fields (`landings`, `counts.dayTakeoffs`,
+   `counts.nightTakeoffs`) no longer apply and those flights are asked about again.
+6. **Operating-rule proposals** (`src/core/reconcile/rules.ts`, DESIGN §7.4), confirmed by
    group or per flight on the audit screen.
-6. **Names**: given and family names stored separately, a Settings screen with the name
+7. **Names**: given and family names stored separately, a Settings screen with the name
    order, and crew compared person by person.
 
 What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) show:
@@ -165,8 +170,14 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
 
 Next, in order:
 
-7. **Pairing by hand** on the audit screen, and keyboard movement through the list.
-8. **Type mapping** onto one type list (DESIGN §7.5).
-9. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
+8. **Pairing by hand** on the audit screen, and keyboard movement through the list.
+9. **Type mapping** onto one type list (DESIGN §7.5).
+10. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
+
+## Asked for, for manual entry (milestone 9)
+
+DESIGN §5 records two requests from the pilot: a PF tick that logs one takeoff and one landing
+by day or night from the off/on times (the sun calculation already exists), and go-arounds or
+missed approaches as ticks with a short reason each.
 
 Open questions for the pilot are listed in DESIGN §12.

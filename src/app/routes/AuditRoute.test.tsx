@@ -231,6 +231,52 @@ describe('audit screen', () => {
     expect(main.entries.filter((e) => e.rule === '135')).toHaveLength(1);
   });
 
+  it('shows takeoffs with landings, suggests the side that adds up, and can take every suggestion', async () => {
+    const user = userEvent.setup();
+    const store = createMemoryStore();
+    const pairLt = logten.text.replace(
+      /^(2024-03-05\tKAAA\tKAAA(?:\t[^\t]*){7})\t1\t1/m,
+      '$1\t2\t5',
+    );
+    expect(pairLt).not.toBe(logten.text);
+    const pairFf = foreflight.text.replace(
+      /^(2024-03-05,N101AB,KAAA,KAAA,,,1\.0,1\.0,,,,"""Identical\.""",)1,1/m,
+      '$15,5',
+    );
+    expect(pairFf).not.toBe(foreflight.text);
+    await importFile(store, { name: 'l.txt', text: pairLt }, { now: () => NOW });
+    await importFile(store, { name: 'f.csv', text: pairFf }, { now: () => NOW });
+    renderApp(store, '/audit');
+
+    await user.click((await screen.findAllByRole('button', { name: /5 Mar 2024/ }))[0]!);
+    const card = await screen.findByRole('group', { name: /Takeoffs and landings/ });
+    expect(within(card).getByRole('radio', { name: /LogTen/ })).toHaveAccessibleName(
+      /Takeoffs 2 day · Landings 5 day · 2 takeoffs for 5 landings/,
+    );
+    expect(within(card).getByRole('radio', { name: /ForeFlight/ })).toHaveAccessibleName(
+      /Suggested.*Takeoffs 5 day · Landings 5 day/,
+    );
+    expect(card).toHaveTextContent(
+      'Suggested: ForeFlight. Its takeoffs and landings add up; the other app’s do not.',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.selectOptions(
+      screen.getByLabelText('Takeoffs and landings that differ'),
+      'suggested',
+    );
+    await waitFor(async () =>
+      expect(await store.listDecisions()).toContainEqual(
+        expect.objectContaining({
+          pattern: 'real',
+          field: 'takeoffsLandings',
+          choice: 'suggested',
+        }),
+      ),
+    );
+    expect(await screen.findByText('Settles 1.')).toBeInTheDocument();
+  });
+
   it('builds my logbook and opens it', async () => {
     const user = userEvent.setup();
     const store = await auditStore();
