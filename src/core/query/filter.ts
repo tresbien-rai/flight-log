@@ -1,3 +1,4 @@
+import { formatFlightNumber } from '../importers/normalize/flightNumber';
 import type { Entry } from '../model';
 import type { EntryFilter, LogbookIndex } from './types';
 
@@ -29,6 +30,8 @@ function searchText(entry: Entry, index: LogbookIndex): string {
     entry.to,
     entry.route,
     entry.flightNumber,
+    // Found whether the query is typed `DL3939` or `DL 3939`.
+    entry.flightNumber && formatFlightNumber(entry.flightNumber, 'spaced'),
     type?.id,
     type?.model,
     ...entry.crew.map((c) => index.person(c.personId)?.name),

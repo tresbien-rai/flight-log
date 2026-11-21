@@ -21,6 +21,33 @@ describe('settings', () => {
     await waitFor(() => expect(store.settings.get('app.nameOrder')).toBe('given-first'));
   });
 
+  it('writes flight numbers with a space by default, and without one when chosen', async () => {
+    const user = userEvent.setup();
+    const store = createMemoryStore();
+    await store.replaceBook(
+      'logten',
+      makeLogbook({
+        aircraftTypes: [makeType({ id: 'C172' })],
+        airframes: [
+          makeAirframe({
+            id: 'a1',
+            registrations: [{ value: 'N1' }],
+            configurations: [{ value: 'C172' }],
+          }),
+        ],
+        entries: [makeEntry({ id: 'e1', airframeId: 'a1', flightNumber: 'DL3939' })],
+      }),
+      { updatedAt: '2025-01-01T00:00:00Z', issues: [], notes: [] },
+    );
+    const first = renderApp(store, '/entry/e1');
+    expect(await screen.findAllByText('DL 3939')).not.toHaveLength(0);
+    first.unmount();
+
+    renderApp(store, '/settings');
+    await user.click(await screen.findByRole('radio', { name: /Without a space/ }));
+    await waitFor(() => expect(store.settings.get('app.flightNumberStyle')).toBe('joined'));
+  });
+
   it('shows crew in the chosen order', async () => {
     const store = createMemoryStore();
     await store.replaceBook(

@@ -449,3 +449,59 @@
   color: var(--warning);
   font-weight: 600;
 }
+
+.choice-suggestion {
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--accent);
+  background: var(--select-bg);
+  font-size: var(--fs-s);
+}
+
+.choice-badge {
+  display: block;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.fix-app {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fix {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.fix-where {
+  font-family: var(--font-ledger);
+  font-weight: 600;
+  font-size: var(--fs-l);
+}
+
+.fix-change {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.fix-change dt {
+  color: var(--muted);
+}
+
+.fix-change dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fix-now {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.fix-should {
+  font-weight: 600;
+}

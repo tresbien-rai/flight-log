@@ -1,4 +1,5 @@
-import type { NameOrder } from '@core/importers';
+import { formatFlightNumber } from '@core/importers';
+import type { DisplayPrefs } from '../lib/prefs';
 import { personName } from '../lib/names';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { DURATION_FIELDS, type Approach, type DurationField, type Entry } from '@core/model';
@@ -112,7 +113,7 @@ export function EntryDetail({
   findings,
   onClose,
   sheet,
-  nameOrder,
+  prefs,
 }: {
   entry: Entry;
   index: LogbookIndex;
@@ -120,12 +121,12 @@ export function EntryDetail({
   onClose: () => void;
   /** True when shown as a full-screen sheet rather than a side pane. */
   sheet: boolean;
-  nameOrder: NameOrder;
+  prefs: DisplayPrefs;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const crewName = (personId: string) => {
     const person = index.person(personId);
-    return person ? personName(person, nameOrder) : personId;
+    return person ? personName(person, prefs.nameOrder) : personId;
   };
   const backRef = useRef<HTMLButtonElement>(null);
 
@@ -256,7 +257,11 @@ export function EntryDetail({
                 ['From', entry.from],
                 ['To', entry.to ?? (entry.from ? 'Local flight' : undefined)],
                 ['Route', entry.route],
-                ['Flight number', entry.flightNumber],
+                [
+                  'Flight number',
+                  entry.flightNumber &&
+                    formatFlightNumber(entry.flightNumber, prefs.flightNumberStyle),
+                ],
                 ['Operating rule', RULE_NAMES[entry.rule]],
               ]}
             />

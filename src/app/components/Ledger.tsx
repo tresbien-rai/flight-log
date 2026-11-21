@@ -1,3 +1,4 @@
+import { formatFlightNumber, type FlightNumberStyle } from '@core/importers';
 import { memo, useCallback, useEffect, useRef, type KeyboardEvent, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Entry } from '@core/model';
@@ -49,6 +50,7 @@ const EntryRow = memo(function EntryRow({
   rowIndex,
   top,
   onSelect,
+  flightNumberStyle,
 }: {
   entry: Entry;
   index: LogbookIndex;
@@ -58,6 +60,7 @@ const EntryRow = memo(function EntryRow({
   rowIndex: number;
   top: number;
   onSelect: (id: string) => void;
+  flightNumberStyle: FlightNumberStyle;
 }) {
   const f = entryFigures(entry);
   const { day, weekday } = dayAndWeekday(entry.date);
@@ -87,7 +90,7 @@ const EntryRow = memo(function EntryRow({
         <span className="day">{day}</span> <span className="weekday">{weekday}</span>
       </div>
       <div role="gridcell" className="cell c-flight">
-        {entry.flightNumber ?? ''}
+        {entry.flightNumber ? formatFlightNumber(entry.flightNumber, flightNumberStyle) : ''}
       </div>
       <div role="gridcell" className="cell c-aircraft g">
         <span className="tail">{tail ?? ''}</span>
@@ -170,6 +173,7 @@ export function Ledger({
   gridRef,
   label,
   checking,
+  flightNumberStyle = 'spaced',
 }: {
   items: readonly LedgerItem[];
   totals: PageTotals;
@@ -186,6 +190,7 @@ export function Ledger({
   label: string;
   /** True while findings are still being worked out. */
   checking: boolean;
+  flightNumberStyle?: FlightNumberStyle;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const setRefs = useCallback(
@@ -317,6 +322,7 @@ export function Ledger({
               rowIndex={v.index + 2}
               top={top}
               onSelect={onSelect}
+              flightNumberStyle={flightNumberStyle}
             />
           );
         })}

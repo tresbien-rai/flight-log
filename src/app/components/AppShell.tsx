@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { BookId } from '@storage/index';
 import { useBooks } from '../hooks/useBook';
-import { useNameOrder } from '../hooks/useNameOrder';
+import { useDisplayPrefs } from '../hooks/useDisplayPrefs';
 import { useSelectedBook } from '../hooks/useSelectedBook';
 import type { ShellContext } from '../routes/shellContext';
 import { BookSwitcher } from './BookSwitcher';
@@ -10,7 +10,7 @@ export function AppShell() {
   const { state: books, retry: retryBooks } = useBooks();
   const list = books.status === 'ready' ? books.value : undefined;
   const { bookId, selectBook: rememberBook } = useSelectedBook(list);
-  const { nameOrder, setNameOrder } = useNameOrder();
+  const { prefs, setNameOrder, setFlightNumberStyle } = useDisplayPrefs();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // An open entry belongs to one book, so switching books closes it.
@@ -26,8 +26,9 @@ export function AppShell() {
     retryBooks,
     bookId,
     selectBook,
-    nameOrder,
+    prefs,
     setNameOrder,
+    setFlightNumberStyle,
   };
 
   return (

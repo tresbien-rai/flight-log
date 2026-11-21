@@ -1,5 +1,5 @@
 /** Display and input helpers for the audit screen. Pure; no DOM. */
-import { COLUMN_PRESETS, type NameOrder, type SourceRecord } from '@core/importers';
+import { COLUMN_PRESETS, formatFlightNumber, type SourceRecord } from '@core/importers';
 import type {
   BulkDecision,
   Decision,
@@ -9,12 +9,15 @@ import type {
   ResolvedOrphan,
   RuleProposal,
   RuleStatus,
+  SuggestReason,
   ResolvedPair,
   Side,
 } from '@core/reconcile';
+import { tolCounts } from '@core/reconcile';
 import { formatDecimal, parseDuration } from '@core/time/duration';
 import { formatHours, formatInt, shortDate } from './format';
 import { writtenName } from './names';
+import { DEFAULT_PREFS, type DisplayPrefs } from './prefs';
 
 export const SIDE_LABEL: Record<Side, string> = { a: 'LogTen', b: 'ForeFlight' };
 
@@ -32,7 +35,7 @@ const FIELD_LABELS: Record<string, string> = {
   people: 'Crew',
   remarks: 'Remarks',
   approaches: 'Approaches',
-  landings: 'Landings',
+  takeoffsLandings: 'Takeoffs and landings',
   'clock.out': 'Out',
   'clock.off': 'Off',
   'clock.on': 'On',
@@ -52,8 +55,6 @@ const FIELD_LABELS: Record<string, string> = {
   'durations.dualGiven': 'Dual given',
   'durations.simulator': 'Simulator',
   'durations.groundTraining': 'Ground training',
-  'counts.dayTakeoffs': 'Day takeoffs',
-  'counts.nightTakeoffs': 'Night takeoffs',
   'counts.holds': 'Holds',
   'counts.goArounds': 'Go-arounds',
   'custom.dualGivenPPL': 'Dual given, private',
@@ -147,20 +148,33 @@ const KIND_TEXT: Record<string, string> = {
   ground: 'Ground training',
 };
 
-function landingsText(r: SourceRecord): string {
-  const c = r.counts;
-  const parts: string[] = [];
-  const add = (label: string, n: number | undefined) => {
-    if (n !== undefined) parts.push(`${label} ${n}`);
-  };
-  add('day', c.dayLandings);
-  add('night', c.nightLandings);
-  add('day full-stop', c.dayFullStopLandings);
-  add('night full-stop', c.nightFullStopLandings);
-  add('full-stop', c.fullStopLandings);
-  add('touch-and-go', c.touchAndGoes);
-  add('all', c.allLandings);
-  return parts.length > 0 ? parts.join(' · ') : BLANK;
+const dayNight = (day: number, night: number): string =>
+  day > 0 && night > 0 ? `${day} day, ${night} night` : night > 0 ? `${night} night` : `${day} day`;
+
+/** `Takeoffs 2 day · Landings 5 day (2 touch-and-go)`, with a warning when they do not add up. */
+export function takeoffsLandingsText(r: SourceRecord): string {
+  const t = tolCounts(r);
+  const takeoffs = t.dayTakeoffs + t.nightTakeoffs;
+  if (takeoffs === 0 && t.landings === 0) return 'None';
+  const tg = t.touchAndGoes ? ` (${t.touchAndGoes} touch-and-go)` : '';
+  const text = `Takeoffs ${dayNight(t.dayTakeoffs, t.nightTakeoffs)} · Landings ${dayNight(t.dayLandings, t.nightLandings)}${tg}`;
+  return takeoffs === t.landings
+    ? text
+    : `${text} · ${takeoffs} takeoffs for ${t.landings} landings`;
+}
+
+const SUGGEST_TEXT: Record<SuggestReason, string> = {
+  'pilot-flying-day':
+    'You were pilot flying, and the times put the takeoff and landing in daylight.',
+  'pilot-flying-night':
+    'You were pilot flying, and the times put the takeoff or landing at night (from an hour after sunset).',
+  'pilot-monitoring': 'You were pilot monitoring, so there should be none.',
+  balanced: 'Its takeoffs and landings add up; the other app’s do not.',
+  'pilot-flying': 'You were pilot flying, and the other app has none.',
+};
+
+export function suggestionText(reason: SuggestReason): string {
+  return SUGGEST_TEXT[reason];
 }
 
 /** A typed value shown the way a side's value would be. */
@@ -175,11 +189,14 @@ export function displayTyped(field: DecisionField, value: string | number | bool
 export function displayValue(
   r: SourceRecord,
   field: DecisionField,
-  nameOrder: NameOrder = 'family-first',
+  prefs: DisplayPrefs = DEFAULT_PREFS,
 ): string {
+  if (field === 'flightNumber') {
+    return r.flightNumber ? formatFlightNumber(r.flightNumber, prefs.flightNumberStyle) : BLANK;
+  }
   switch (field) {
-    case 'landings':
-      return landingsText(r);
+    case 'takeoffsLandings':
+      return takeoffsLandingsText(r);
     case 'approaches':
       return r.approaches.length === 0
         ? BLANK
@@ -189,7 +206,7 @@ export function displayValue(
     case 'people':
       return r.people.length === 0
         ? BLANK
-        : r.people.map((p) => `${writtenName(p.name, nameOrder)} (${p.role})`).join('; ');
+        : r.people.map((p) => `${writtenName(p.name, prefs.nameOrder)} (${p.role})`).join('; ');
     case 'kind':
       return KIND_TEXT[r.kind] ?? r.kind;
     case 'rule':
@@ -262,7 +279,7 @@ export interface AuditItem {
 export function auditItems(resolution: Resolution, only?: ReadonlySet<string>): AuditItem[] {
   const items: AuditItem[] = [];
   for (const pair of resolution.pairs) {
-    const live = pair.fields.filter((f) => f.class !== 'equivalent' || f.by === 'pair');
+    const live = pair.fields.filter(isShown);
     if (only ? !only.has(pair.entryId) : live.length === 0 && pair.match === 'exact') continue;
     items.push({
       id: pair.entryId,
@@ -294,6 +311,11 @@ export function auditItems(resolution: Resolution, only?: ReadonlySet<string>): 
     });
   }
   return items.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+}
+
+/** A field worth showing the pilot: not the same fact written twice, not settled without asking. */
+export function isShown(f: ResolvedPair['fields'][number]): boolean {
+  return f.by === 'pair' || (f.class !== 'equivalent' && f.by !== 'automatic');
 }
 
 export const isOpen = (item: AuditItem): boolean => item.openItself || item.openFields.length > 0;
@@ -360,7 +382,7 @@ export function ruleStats(resolution: Resolution): Map<string, RuleStat> {
   };
   for (const pair of resolution.pairs) {
     for (const f of pair.fields) {
-      if (f.class === 'equivalent' || f.by === 'pair') continue;
+      if (f.class === 'equivalent' || f.by === 'pair' || f.by === 'automatic') continue;
       const what = f.by === 'bulk' ? 'settled' : 'open';
       if (f.pattern) {
         bump(`bulk:${f.pattern}:*`, what);
@@ -446,4 +468,94 @@ export function auditTotals(
     row('Simulator', 'sim', formatHours),
     row('Landings', 'landings', formatInt),
   ];
+}
+
+// --- settled without asking ------------------------------------------------------------------
+
+/** How many differences were settled automatically, by kind. */
+export function automaticCounts(resolution: Resolution): {
+  rounding: number;
+  flightNumber: number;
+} {
+  const out = { rounding: 0, flightNumber: 0 };
+  for (const p of resolution.pairs) {
+    for (const f of p.fields) {
+      if (f.by !== 'automatic') continue;
+      if (f.pattern === 'rounding') out.rounding++;
+      else if (f.field === 'flightNumber') out.flightNumber++;
+    }
+  }
+  return out;
+}
+
+// --- fixing the source apps ------------------------------------------------------------------
+
+export interface FixChange {
+  field: DecisionField;
+  label: string;
+  /** What the app says now. */
+  now: string;
+  /** What it should say. */
+  should: string;
+}
+
+export interface FixItem {
+  /** The audit entry to open for this flight. */
+  entryId: string;
+  /** The app's own row, for finding it there: the app's date, tail, route and times. */
+  record: SourceRecord;
+  kind: 'change' | 'add' | 'delete';
+  changes: FixChange[];
+}
+
+/**
+ * What to correct in each app so it agrees with the pilot's decisions. Only differences the
+ * pilot decided (a choice on the flight, or a rule for one field's real differences) are
+ * listed; rounding and blanks are how the apps store things, not mistakes. One-app-only
+ * entries are listed as an entry to add to the other app (kept) or delete (left out).
+ */
+export function fixList(
+  resolution: Resolution,
+  prefs: DisplayPrefs = DEFAULT_PREFS,
+): Record<Side, FixItem[]> {
+  const out: Record<Side, FixItem[]> = { a: [], b: [] };
+  for (const pair of resolution.pairs) {
+    const decided = pair.fields.filter(
+      (f) => f.by === 'pair' || (f.by === 'bulk' && f.pattern === undefined),
+    );
+    for (const side of ['a', 'b'] as const) {
+      const changes: FixChange[] = [];
+      for (const f of decided) {
+        const now = displayValue(pair[side], f.field, prefs);
+        const should = displayValue(pair.record, f.field, prefs);
+        if (now !== should)
+          changes.push({ field: f.field, label: fieldLabel(f.field), now, should });
+      }
+      if (changes.length > 0) {
+        out[side].push({ entryId: pair.entryId, record: pair[side], kind: 'change', changes });
+      }
+    }
+  }
+  for (const orphan of resolution.orphans) {
+    if (orphan.action === 'keep') {
+      const other: Side = orphan.side === 'a' ? 'b' : 'a';
+      out[other].push({ entryId: orphan.entryId, record: orphan.record, kind: 'add', changes: [] });
+    } else if (orphan.action === 'drop') {
+      out[orphan.side].push({
+        entryId: orphan.entryId,
+        record: orphan.record,
+        kind: 'delete',
+        changes: [],
+      });
+    }
+  }
+  const byDate = (x: FixItem, y: FixItem) =>
+    x.record.date < y.record.date
+      ? -1
+      : x.record.date > y.record.date
+        ? 1
+        : x.record.line - y.record.line;
+  out.a.sort(byDate);
+  out.b.sort(byDate);
+  return out;
 }

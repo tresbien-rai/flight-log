@@ -41,33 +41,29 @@ describe('audit screen', () => {
   it('shows what is open, the totals and the flights to review', async () => {
     renderApp(await auditStore(), '/audit');
     const list = await screen.findByRole('list', { name: 'Flights to review' });
-    expect(within(list).getAllByRole('button')).toHaveLength(5);
-    expect(screen.getByRole('button', { name: 'To do (5)' })).toHaveAttribute(
+    // 1 Mar differs only by rounding, which is settled without asking.
+    expect(within(list).getAllByRole('button')).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'To do (4)' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    expect(rows()[2]).toHaveTextContent('Confirm pairing: different aircraft');
-    expect(rows()[3]).toHaveTextContent('Only in ForeFlight');
+    expect(rows()[1]).toHaveTextContent('Confirm pairing: different aircraft');
+    expect(rows()[2]).toHaveTextContent('Only in ForeFlight');
+    expect(rows()[1]).toHaveTextContent(/Aircraft$/);
+    expect(
+      screen.getByText(/Settled without asking: 4 rounding differences, keeping the more precise/),
+    ).toBeInTheDocument();
 
     const totals = screen.getByRole('table');
     expect(within(totals).getByRole('row', { name: /Night/ })).toHaveTextContent('Night0.80.30.8');
     expect(screen.getByText('Not built yet.')).toBeInTheDocument();
   });
 
-  it('applies and removes a rule for a whole group', async () => {
-    const user = userEvent.setup();
-    const store = await auditStore();
-    renderApp(store, '/audit');
-    await user.click(await screen.findByRole('button', { name: 'Apply: Rounding' }));
-    expect(await screen.findByText('On · settles 4')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'To do (4)' })).toBeInTheDocument();
-    expect(await store.listDecisions()).toMatchObject([
-      { kind: 'bulk', pattern: 'rounding', choice: 'more-precise' },
-    ]);
-
-    await user.click(screen.getByRole('button', { name: 'Turn off: Rounding' }));
-    expect(await screen.findByRole('button', { name: 'To do (5)' })).toBeInTheDocument();
-    expect(await store.listDecisions()).toEqual([]);
+  it('offers a rule only when it would settle something', async () => {
+    renderApp(await auditStore(), '/audit');
+    // The two synthetic exports have no blank-in-one-app differences.
+    expect(await screen.findByRole('button', { name: 'Apply: Blank in one app' })).toBeDisabled();
+    expect(screen.queryByLabelText('Remarks that differ')).not.toBeInTheDocument();
   });
 
   it('decides one field by picking a side, typing a value, and clearing', async () => {
@@ -88,7 +84,7 @@ describe('audit screen', () => {
       ).toBeChecked(),
     );
     expect(screen.getByRole('group', { name: /Night/ })).toHaveTextContent('Your choice');
-    expect(screen.getByRole('button', { name: 'To do (4)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'To do (3)' })).toBeInTheDocument();
     expect(screen.getByText('Nothing left to decide on this one.')).toBeInTheDocument();
 
     const input = screen.getByLabelText('Something else');
@@ -109,7 +105,7 @@ describe('audit screen', () => {
     await waitFor(() =>
       expect(screen.getByRole('group', { name: /Night/ })).toHaveTextContent('Open'),
     );
-    expect(screen.getByRole('button', { name: 'To do (5)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'To do (4)' })).toBeInTheDocument();
   });
 
   it('confirms a pairing, or splits it and pairs it again', async () => {
@@ -125,14 +121,14 @@ describe('audit screen', () => {
     expect(await screen.findByText(/you confirmed it is one flight/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Different flights' }));
-    await waitFor(() => expect(rows()).toHaveLength(6));
+    await waitFor(() => expect(rows()).toHaveLength(5));
     const split = rows().filter((row) => /4 Mar 2024/.test(row.textContent ?? ''));
     expect(split).toHaveLength(2);
     expect(split[0]).toHaveTextContent('Only in LogTen');
 
     await user.click(split[0]!);
     await user.click(await screen.findByRole('button', { name: 'Pair it again' }));
-    await waitFor(() => expect(rows()).toHaveLength(5));
+    await waitFor(() => expect(rows()).toHaveLength(4));
   });
 
   it('keeps or leaves out one-app-only entries, one at a time or all at once', async () => {
@@ -155,13 +151,13 @@ describe('audit screen', () => {
     ]);
     await user.click(screen.getByRole('button', { name: 'Leave it out' }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'To do (5)' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'To do (4)' })).toBeInTheDocument(),
     );
 
     await user.click(screen.getByRole('button', { name: 'Close' }));
     await user.click(screen.getByRole('button', { name: 'Keep all 2' }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'To do (3)' })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'To do (2)' })).toBeInTheDocument(),
     );
     expect((await store.listDecisions()).map((d) => d.kind === 'orphan' && d.action)).toEqual([
       'keep',
@@ -179,7 +175,7 @@ describe('audit screen', () => {
     await user.click(screen.getByRole('button', { name: 'Decided by you' }));
     expect(screen.getByText('Nothing to show.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'All' }));
-    expect(rows()).toHaveLength(5);
+    expect(rows()).toHaveLength(4);
   });
 
   it('proposes an operating rule for unmarked flights, by group and for one flight', async () => {
@@ -205,7 +201,7 @@ describe('audit screen', () => {
     await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(await screen.findByText('Marked Part 135 by you')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back to differences' }));
-    expect(rows()).toHaveLength(5);
+    expect(rows()).toHaveLength(4);
 
     await user.click(
       screen.getByRole('button', {
@@ -231,6 +227,80 @@ describe('audit screen', () => {
     expect(main.entries.filter((e) => e.rule === '135')).toHaveLength(1);
   });
 
+  it('shows takeoffs with landings, suggests the side that adds up, and can take every suggestion', async () => {
+    const user = userEvent.setup();
+    const store = createMemoryStore();
+    const pairLt = logten.text.replace(
+      /^(2024-03-05\tKAAA\tKAAA(?:\t[^\t]*){7})\t1\t1/m,
+      '$1\t2\t5',
+    );
+    expect(pairLt).not.toBe(logten.text);
+    const pairFf = foreflight.text.replace(
+      /^(2024-03-05,N101AB,KAAA,KAAA,,,1\.0,1\.0,,,,"""Identical\.""",)1,1/m,
+      '$15,5',
+    );
+    expect(pairFf).not.toBe(foreflight.text);
+    await importFile(store, { name: 'l.txt', text: pairLt }, { now: () => NOW });
+    await importFile(store, { name: 'f.csv', text: pairFf }, { now: () => NOW });
+    renderApp(store, '/audit');
+
+    await user.click((await screen.findAllByRole('button', { name: /5 Mar 2024/ }))[0]!);
+    const card = await screen.findByRole('group', { name: /Takeoffs and landings/ });
+    expect(within(card).getByRole('radio', { name: /LogTen/ })).toHaveAccessibleName(
+      /Takeoffs 2 day · Landings 5 day · 2 takeoffs for 5 landings/,
+    );
+    expect(within(card).getByRole('radio', { name: /ForeFlight/ })).toHaveAccessibleName(
+      /Suggested.*Takeoffs 5 day · Landings 5 day/,
+    );
+    expect(card).toHaveTextContent(
+      'Suggested: ForeFlight. Its takeoffs and landings add up; the other app’s do not.',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.selectOptions(
+      screen.getByLabelText('Takeoffs and landings that differ'),
+      'suggested',
+    );
+    await waitFor(async () =>
+      expect(await store.listDecisions()).toContainEqual(
+        expect.objectContaining({
+          pattern: 'real',
+          field: 'takeoffsLandings',
+          choice: 'suggested',
+        }),
+      ),
+    );
+    expect(await screen.findByText('Settles 1.')).toBeInTheDocument();
+  });
+
+  it('lists what to fix in each app once the pilot overrules one, and opens the flight from there', async () => {
+    const user = userEvent.setup();
+    renderApp(await auditStore(), '/audit');
+    expect(
+      await screen.findByText(/Nothing yet\. When you choose one app’s value over the other’s/),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: /2 Mar 2024/ })[0]!);
+    const night = await screen.findByRole('group', { name: /Night/ });
+    await user.click(within(night).getByRole('radio', { name: /ForeFlight/ }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(
+      await screen.findByText('1 entry to correct in LogTen, 0 entries in ForeFlight.'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show what to fix' }));
+    const panel = await screen.findByRole('complementary', { name: 'Fix in the apps' });
+    const logten = within(panel).getByRole('region', { name: /In LogTen/ });
+    expect(logten).toHaveTextContent('Night0.80 → should be 0.30');
+    expect(within(panel).getByRole('region', { name: /In ForeFlight/ })).toHaveTextContent(
+      'Nothing to change.',
+    );
+    await user.click(
+      within(logten).getByRole('link', { name: /2 Mar 2024 · N101AB · KBBB → KAAA/ }),
+    );
+    expect(await screen.findByRole('group', { name: /Night/ })).toHaveTextContent('Your choice');
+  });
+
   it('builds my logbook and opens it', async () => {
     const user = userEvent.setup();
     const store = await auditStore();
@@ -249,7 +319,9 @@ describe('audit screen', () => {
     try {
       const user = userEvent.setup();
       renderApp(await auditStore(), '/audit');
-      expect(await screen.findByRole('button', { name: 'Apply: Rounding' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: 'Apply: Blank in one app' }),
+      ).toBeInTheDocument();
       await user.click(screen.getAllByRole('button', { name: /2 Mar 2024/ })[0]!);
       await user.click(await screen.findByRole('button', { name: 'Back to list' }));
       expect(screen.queryByRole('complementary', { name: 'Audit detail' })).not.toBeInTheDocument();

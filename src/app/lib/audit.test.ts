@@ -2,10 +2,19 @@ import foreflightText from '../../../fixtures/pair/foreflight.csv?raw';
 import logtenText from '../../../fixtures/pair/logten.txt?raw';
 import { describe, expect, it } from 'vitest';
 import { COLUMN_PRESETS, importForeFlight, importLogTen } from '@core/importers';
-import { matchRecords, proposeRules, resolve, ruleDecisions, type Decision } from '@core/reconcile';
+import {
+  amendPairDecision,
+  matchRecords,
+  proposeRules,
+  resolve,
+  ruleDecisions,
+  type Decision,
+} from '@core/reconcile';
 import {
   auditItems,
   auditTotals,
+  automaticCounts,
+  fixList,
   decidedRules,
   proposalReason,
   proposalTitle,
@@ -38,7 +47,7 @@ const rounding: Decision = {
 describe('labels and values', () => {
   it('names fields for people', () => {
     expect(fieldLabel('durations.night')).toBe('Night');
-    expect(fieldLabel('landings')).toBe('Landings');
+    expect(fieldLabel('takeoffsLandings')).toBe('Takeoffs and landings');
     expect(fieldLabel('custom.somethingNew')).toBe('somethingNew');
   });
 
@@ -48,7 +57,31 @@ describe('labels and values', () => {
     expect(displayValue(night, 'durations.solo')).toBe('—');
     expect(displayValue(night, 'tail')).toBe('N101AB');
     expect(displayValue(night, 'rule')).toBe('—');
-    expect(displayValue(night, 'landings')).toBe('day 1');
+    expect(displayValue(night, 'takeoffsLandings')).toBe('Takeoffs 1 day · Landings 1 day');
+    expect(
+      displayValue(
+        {
+          ...night,
+          counts: { dayTakeoffs: 2, nightTakeoffs: 1, dayLandings: 4, nightLandings: 1 },
+        },
+        'takeoffsLandings',
+      ),
+    ).toBe('Takeoffs 2 day, 1 night · Landings 4 day, 1 night · 3 takeoffs for 5 landings');
+    expect(
+      displayValue(
+        {
+          ...night,
+          counts: {
+            dayTakeoffs: 3,
+            dayFullStopLandings: 1,
+            nightFullStopLandings: 0,
+            allLandings: 3,
+          },
+        },
+        'takeoffsLandings',
+      ),
+    ).toBe('Takeoffs 3 day · Landings 3 day (2 touch-and-go)');
+    expect(displayValue({ ...night, counts: {} }, 'takeoffsLandings')).toBe('None');
     expect(displayValue(night, 'approaches')).toBe('—');
     expect(displayValue(night, 'people')).toBe('—');
     expect(displayValue(night, 'kind')).toBe('Flight');
@@ -78,7 +111,9 @@ describe('labels and values', () => {
     expect(displayValue(rich, 'rule')).toBe('Part 121');
     expect(displayValue(rich, 'pilotFlying')).toBe('Yes');
     expect(displayValue(rich, 'people')).toBe('Example, Pat (PIC)');
-    expect(displayValue(rich, 'people', 'given-first')).toBe('Pat Example (PIC)');
+    expect(
+      displayValue(rich, 'people', { nameOrder: 'given-first', flightNumberStyle: 'spaced' }),
+    ).toBe('Pat Example (PIC)');
     expect(displayValue(rich, 'custom.passengerCount')).toBe('50');
     expect(displayValue(rich, 'custom.dualGivenPPL')).toBe('1.50');
     expect(displayValue(rich, 'custom.flag')).toBe('Yes');
@@ -101,7 +136,14 @@ describe('typed values', () => {
     expect(typedKind('custom.flag')).toBeUndefined();
     expect(typedKind('tail')).toBe('text');
     expect(typedKind('date')).toBe('date');
-    for (const field of ['landings', 'approaches', 'people', 'rule', 'kind', 'pilotFlying']) {
+    for (const field of [
+      'takeoffsLandings',
+      'approaches',
+      'people',
+      'rule',
+      'kind',
+      'pilotFlying',
+    ]) {
       expect(typedKind(field)).toBeUndefined();
     }
   });
@@ -132,7 +174,7 @@ describe('typed values', () => {
     ['date', '2023-02-29'],
     ['date', '3/1/2024'],
     ['tail', '  '],
-    ['landings', '3'],
+    ['takeoffsLandings', '3'],
   ] as const)('rejects %s "%s"', (field, text) => {
     expect(parseTyped(field, text)).toBeUndefined();
   });
@@ -149,10 +191,10 @@ describe('typed values', () => {
 describe('list, rules and totals', () => {
   it('lists what needs a look, in date order, and leaves out flights that agree', () => {
     const items = auditItems(resolve(match, []));
+    // 1 Mar differs only by rounding, settled without asking; 4 Mar's rounding is hidden too.
     expect(items.map((i) => [i.date, i.openFields, i.openItself])).toEqual([
-      ['2024-03-01', ['durations.total', 'durations.pic'], false],
       ['2024-03-02', ['durations.night'], false],
-      ['2024-03-04', ['tail', 'durations.total', 'durations.sic'], true],
+      ['2024-03-04', ['tail'], true],
       ['2024-03-10', [], true],
       ['2024-03-12', [], true],
     ]);
@@ -160,21 +202,12 @@ describe('list, rules and totals', () => {
     expect(items.every((i) => !i.touched)).toBe(true);
   });
 
-  it('keeps a flight settled only by a rule in the list, but not as open or touched', () => {
-    const items = auditItems(resolve(match, [rounding]));
-    const first = items[0]!;
-    expect(first.openFields).toEqual([]);
-    expect(isOpen(first)).toBe(false);
-    expect(first.touched).toBe(false);
-  });
-
-  it('counts what each rule would settle and does settle', () => {
+  it('counts what each rule would settle, leaving out what is settled without asking', () => {
     const before = ruleStats(resolve(match, []));
-    expect(before.get('bulk:rounding:*')).toEqual({ open: 4, settled: 0 });
-    expect(before.get('bulk:rounding:durations.total')).toEqual({ open: 2, settled: 0 });
+    expect(before.get('bulk:rounding:*')).toBeUndefined();
     expect(before.get('bulk:real:tail')).toEqual({ open: 1, settled: 0 });
-    const after = ruleStats(resolve(match, [rounding]));
-    expect(after.get('bulk:rounding:*')).toEqual({ open: 0, settled: 4 });
+    expect(before.get('bulk:real:durations.night')).toEqual({ open: 1, settled: 0 });
+    expect(automaticCounts(resolve(match, []))).toEqual({ rounding: 4, flightNumber: 0 });
   });
 
   it('finds a stored rule by pattern and field', () => {
@@ -247,5 +280,55 @@ describe('operating rule', () => {
     const decided = resolve(match, ruleDecisions([items[0]!.anchor, items[2]!.anchor], '135', AT));
     expect([...decidedRules(decided)]).toEqual([['135', [items[0]!.anchor, items[2]!.anchor]]]);
     expect(decidedRules(resolution).size).toBe(0);
+  });
+});
+
+describe('fixList', () => {
+  const first = resolve(match, []);
+  const tailPair = first.pairs.find((p) => p.a.date === '2024-03-04')!;
+  const nightPair = first.pairs.find((p) => p.a.date === '2024-03-02')!;
+  const [ground, sim] = first.orphans;
+
+  it('is empty until the pilot decides something', () => {
+    expect(fixList(first)).toEqual({ a: [], b: [] });
+  });
+
+  it('lists the overruled app with what to change, and one-app-only entries to add or delete', () => {
+    const r = resolve(match, [
+      amendPairDecision(tailPair, { match: 'confirmed', fields: { tail: 'b' } }, AT),
+      amendPairDecision(nightPair, { fields: { 'durations.night': { value: 30 } } }, AT),
+      { kind: 'orphan', side: 'b', record: sim!.fingerprint, action: 'keep', decidedAt: AT },
+      { kind: 'orphan', side: 'a', record: ground!.fingerprint, action: 'drop', decidedAt: AT },
+      // Rules for patterns are how the apps store things: nothing to fix.
+      { kind: 'bulk', pattern: 'rounding', choice: 'b', decidedAt: AT },
+    ]);
+    const fixes = fixList(r);
+    expect(fixes.a.map((f) => [f.record.date, f.kind, f.changes])).toEqual([
+      [
+        '2024-03-02',
+        'change',
+        [{ field: 'durations.night', label: 'Night', now: '0.80', should: '0.50' }],
+      ],
+      [
+        '2024-03-04',
+        'change',
+        [{ field: 'tail', label: 'Aircraft', now: 'N404GH', should: 'N414GH' }],
+      ],
+      ['2024-03-10', 'add', []],
+      ['2024-03-12', 'delete', []],
+    ]);
+    expect(fixes.b.map((f) => [f.record.date, f.kind, f.changes.map((c) => c.should)])).toEqual([
+      ['2024-03-02', 'change', ['0.50']],
+    ]);
+    expect(fixes.a[0]!.record).toBe(nightPair.a);
+    expect(fixes.a[0]!.entryId).toBe(nightPair.entryId);
+  });
+
+  it('lists a field rule for real differences, but not an automatic or blank setting', () => {
+    const r = resolve(match, [
+      { kind: 'bulk', pattern: 'real', field: 'durations.night', choice: 'b', decidedAt: AT },
+    ]);
+    expect(fixList(r).a.map((f) => f.changes.map((c) => c.field))).toEqual([['durations.night']]);
+    expect(fixList(r).b).toEqual([]);
   });
 });
