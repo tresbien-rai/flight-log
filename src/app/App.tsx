@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell';
 import { AuditRoute } from './routes/AuditRoute';
 import { ImportRoute } from './routes/ImportRoute';
 import { LogbookRoute } from './routes/LogbookRoute';
+import { SettingsRoute } from './routes/SettingsRoute';
 import { StoreProvider } from './store/StoreProvider';
 
 /** The routes, without a router, so tests can mount them in a memory router. */
@@ -11,6 +12,7 @@ export function AppRoutes() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="import" element={<ImportRoute />} />
+        <Route path="settings" element={<SettingsRoute />} />
         {/* `/audit` and `/audit/:id` are one screen: the id only selects a flight. */}
         <Route path="audit/*" element={<AuditRoute />} />
         {/* `/` and `/entry/:id` are one screen: the entry id only selects a row. */}

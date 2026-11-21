@@ -6,6 +6,7 @@ import type {
   ResolvedOrphan,
   ResolvedPair,
 } from '@core/reconcile';
+import type { NameOrder } from '@core/importers';
 import {
   displayTyped,
   displayValue,
@@ -86,18 +87,20 @@ function FieldCard({
   pair,
   field,
   actions,
+  nameOrder,
 }: {
   pair: ResolvedPair;
   field: ResolvedField;
   actions: DetailActions;
+  nameOrder: NameOrder;
 }) {
   const name = fieldLabel(field.field);
   const choice = field.choice;
   const typed = typeof choice === 'object' ? choice.value : undefined;
   const canBoth = field.field === 'people' || field.field === 'remarks';
   const options: { value: 'a' | 'b' | 'both'; label: string; text: string }[] = [
-    { value: 'a', label: SIDE_LABEL.a, text: displayValue(pair.a, field.field) },
-    { value: 'b', label: SIDE_LABEL.b, text: displayValue(pair.b, field.field) },
+    { value: 'a', label: SIDE_LABEL.a, text: displayValue(pair.a, field.field, nameOrder) },
+    { value: 'b', label: SIDE_LABEL.b, text: displayValue(pair.b, field.field, nameOrder) },
   ];
   if (canBoth) options.push({ value: 'both', label: 'Both', text: 'Keep what each app has' });
 
@@ -169,12 +172,14 @@ export function AuditDetail({
   actions,
   onClose,
   sheet,
+  nameOrder,
 }: {
   pair?: ResolvedPair;
   orphan?: ResolvedOrphan;
   actions: DetailActions;
   onClose: () => void;
   sheet: boolean;
+  nameOrder: NameOrder;
 }) {
   const record = pair?.a ?? orphan!.record;
   const live = pair?.fields.filter((f) => f.class !== 'equivalent' || f.by === 'pair') ?? [];
@@ -242,7 +247,13 @@ export function AuditDetail({
                 <p className="muted">The two apps agree on this flight.</p>
               ) : null}
               {live.map((field) => (
-                <FieldCard key={field.field} pair={pair} field={field} actions={actions} />
+                <FieldCard
+                  key={field.field}
+                  pair={pair}
+                  field={field}
+                  actions={actions}
+                  nameOrder={nameOrder}
+                />
               ))}
               {same > 0 ? (
                 <p className="detail-note">

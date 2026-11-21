@@ -8,7 +8,8 @@
  */
 import type { SourceCounts, SourcePerson, SourceRecord } from '../importers';
 import { DURATION_FIELDS } from '../model';
-import { diffRecords, nameKey } from './diff';
+import { nameKey } from '../importers/normalize/names';
+import { diffRecords } from './diff';
 import type {
   BulkDecision,
   Decision,
@@ -334,6 +335,11 @@ function settleEquivalent(
   if (field === 'approaches') {
     const runways = (r: SourceRecord) => r.approaches.filter((x) => x.runway !== undefined).length;
     if (runways(b) > runways(target)) copyField(target, b, field);
+    return;
+  }
+  if (field === 'people') {
+    // The app that gives people more roles says more.
+    if (b.people.length > target.people.length) copyField(target, b, field);
     return;
   }
   if (field !== 'landings' && diffs.length === 1 && diffs[0]!.a === undefined) {

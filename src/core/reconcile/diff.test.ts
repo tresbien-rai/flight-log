@@ -509,6 +509,73 @@ describe('diffRecords: people', () => {
     ).toBeUndefined();
   });
 
+  it('treats a name written the other way round, with no separator, as the same person', () => {
+    expect(
+      one({ people: [person('Example Pat')] }, { people: [person('Pat Example')] }),
+    ).toBeUndefined();
+  });
+
+  it('one app giving a person more roles than the other is the same crew written differently', () => {
+    const d = one(
+      {
+        people: [
+          person('Example; Pat', 'PIC'),
+          person('Example; Pat', 'SIC'),
+          person('Sam Sample'),
+        ],
+      },
+      { people: [person('Pat Example', 'SIC'), person('Sample, Sam')] },
+    );
+    expect(d).toEqual({ field: 'people', a: 3, b: 2, class: 'equivalent' });
+  });
+
+  it('the same people in roles that contradict is real', () => {
+    expect(
+      one({ people: [person('Example; Pat', 'PIC')] }, { people: [person('Pat Example', 'SIC')] })
+        ?.class,
+    ).toBe('real');
+    // More roles on one side for one person, fewer for another: neither app says it all.
+    expect(
+      one(
+        {
+          people: [
+            person('Pat Example', 'PIC'),
+            person('Pat Example', 'SIC'),
+            person('Sam Sample', 'SIC'),
+          ],
+        },
+        {
+          people: [
+            person('Pat Example', 'PIC'),
+            person('Sam Sample', 'SIC'),
+            person('Sam Sample', 'passenger'),
+          ],
+        },
+      )?.class,
+    ).toBe('real');
+  });
+
+  it('an extra person on one side, with roles that fit, is that person missing on the other', () => {
+    expect(
+      one(
+        { people: [person('Pat Example', 'PIC'), person('Pat Example', 'SIC')] },
+        {
+          people: [
+            person('Pat Example', 'PIC'),
+            person('Pat Example', 'SIC'),
+            person('Sam Sample', 'passenger'),
+          ],
+        },
+      ),
+    ).toMatchObject({ class: 'systematic', pattern: 'missing-a' });
+    expect(
+      one(
+        { people: [person('Pat Example', 'PIC'), person('Pat Example', 'SIC')] },
+        { people: [person('Pat Example', 'SIC'), person('Sam Sample', 'passenger')] },
+      )?.class,
+    ).toBe('real');
+  });
+
   it('is order independent', () => {
     expect(
       one(

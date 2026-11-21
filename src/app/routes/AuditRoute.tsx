@@ -330,6 +330,7 @@ function AuditScreen({ audit }: { audit: Audit }) {
                 actions={detailActions}
                 onClose={close}
                 sheet={!wide}
+                nameOrder={shell.nameOrder}
               />
               {upNext ? (
                 <div className="audit-next">

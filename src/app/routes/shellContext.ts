@@ -1,4 +1,5 @@
 import { useOutletContext } from 'react-router';
+import type { NameOrder } from '@core/importers';
 import type { BookId, BookInfo } from '@storage/index';
 import type { Loadable } from '../hooks/useBook';
 
@@ -9,6 +10,9 @@ export interface ShellContext {
   /** The book being shown, if any book exists. */
   bookId: BookId | undefined;
   selectBook: (id: BookId) => void;
+  /** How people's names are written on screen. */
+  nameOrder: NameOrder;
+  setNameOrder: (order: NameOrder) => void;
 }
 
 export function useShell(): ShellContext {

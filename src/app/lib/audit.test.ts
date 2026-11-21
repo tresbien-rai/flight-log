@@ -74,7 +74,8 @@ describe('labels and values', () => {
     };
     expect(displayValue(rich, 'rule')).toBe('Part 121');
     expect(displayValue(rich, 'pilotFlying')).toBe('Yes');
-    expect(displayValue(rich, 'people')).toBe('Pat Example (PIC)');
+    expect(displayValue(rich, 'people')).toBe('Example, Pat (PIC)');
+    expect(displayValue(rich, 'people', 'given-first')).toBe('Pat Example (PIC)');
     expect(displayValue(rich, 'custom.passengerCount')).toBe('50');
     expect(displayValue(rich, 'custom.dualGivenPPL')).toBe('1.50');
     expect(displayValue(rich, 'custom.flag')).toBe('Yes');

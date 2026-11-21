@@ -152,6 +152,21 @@ describe('resolve: nothing decided', () => {
     expect(r.open.fields).toBe(0);
   });
 
+  it('keeps the fuller crew list when the two apps list the same people', () => {
+    const more = [
+      { name: 'Example; Pat', role: 'PIC' as const },
+      { name: 'Example; Pat', role: 'instructor' as const },
+    ];
+    const fewer = [{ name: 'Pat Example', role: 'instructor' as const }];
+    const r = run([A({ people: fewer })], [B({ people: more })]);
+    expect(r.pairs[0]!.fields[0]).toMatchObject({ field: 'people', by: 'equivalent' });
+    expect(r.pairs[0]!.record.people).toEqual(more);
+    expect(run([A({ people: more })], [B({ people: fewer })]).pairs[0]!.record.people).toEqual(
+      more,
+    );
+    expect(r.open.fields).toBe(0);
+  });
+
   it('never changes the input records', () => {
     const a = A({ durations: { total: 77 }, people: [{ name: 'Example; Pat', role: 'SIC' }] });
     const b = B({ durations: { total: 78 }, tail: 'N999' });

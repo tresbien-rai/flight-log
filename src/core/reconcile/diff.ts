@@ -7,6 +7,7 @@
  */
 import type { Approach } from '../model';
 import { DURATION_FIELDS } from '../model';
+import { nameKey } from '../importers/normalize/names';
 import type { SourceCounts, SourceRecord } from '../importers';
 import type { DiffPattern, DiffValue, FieldDiff, Pair, PairDiff } from './types';
 
@@ -292,23 +293,55 @@ function pilotFlyingDiff(a: boolean | undefined, b: boolean | undefined): FieldD
 
 // --- people ----------------------------------------------------------------------------------
 
-/** `Example; Pat`, `Example, Pat`, `Pat Example` and `pat  example` all give `pat example`. */
-export function nameKey(name: string): string {
-  let s = name.replace(/\./g, '');
-  const i = s.search(/[;,]/);
-  if (i >= 0) s = `${s.slice(i + 1)} ${s.slice(0, i)}`;
-  return s.replace(/\s+/g, ' ').trim().toLowerCase();
+/** Each person's roles, by name key. */
+function rolesByPerson(r: SourceRecord): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const p of r.people) {
+    const key = nameKey(p.name);
+    const roles = out.get(key);
+    if (roles) roles.add(p.role);
+    else out.set(key, new Set([p.role]));
+  }
+  return out;
 }
 
+const within = <T>(part: ReadonlySet<T>, whole: ReadonlySet<T>): boolean =>
+  [...part].every((x) => whole.has(x));
+
+/**
+ * Crew are compared person by person, whatever order their names are written in.
+ *
+ * - The same people with the same roles: no difference.
+ * - The same people, where one app gives someone more roles than the other (LogTen can list
+ *   one person as both PIC and instructor; ForeFlight holds one role each): `equivalent`.
+ * - One app lists everyone the other does, with roles that fit, plus more people: the other
+ *   app is missing someone.
+ * - Anything else (a different person, or roles that contradict): `real`.
+ */
 function peopleDiff(a: SourceRecord, b: SourceRecord): FieldDiff | undefined {
-  const sa = new Set(a.people.map((p) => `${p.role}:${nameKey(p.name)}`));
-  const sb = new Set(b.people.map((p) => `${p.role}:${nameKey(p.name)}`));
-  const aInB = [...sa].every((k) => sb.has(k));
-  const bInA = [...sb].every((k) => sa.has(k));
-  if (aInB && bInA) return undefined;
+  const pa = rolesByPerson(a);
+  const pb = rolesByPerson(b);
+  let identical = pa.size === pb.size;
+  let aFits = true; // everything a says, b says too
+  let bFits = true;
+  for (const [key, roles] of pa) {
+    const other = pb.get(key);
+    if (!other) {
+      identical = false;
+      aFits = false;
+      continue;
+    }
+    if (!within(roles, other)) aFits = false;
+    if (!within(other, roles)) bFits = false;
+  }
+  for (const key of pb.keys()) if (!pa.has(key)) bFits = false;
+  if (identical && aFits && bFits) return undefined;
+
   let verdict: Verdict = { class: 'real' };
-  if (aInB) verdict = missing('missing-a');
-  else if (bInA) verdict = missing('missing-b');
+  const samePeople = pa.size === pb.size && [...pa.keys()].every((key) => pb.has(key));
+  if (samePeople && (aFits || bFits)) verdict = { class: 'equivalent' };
+  else if (aFits) verdict = missing('missing-a');
+  else if (bFits) verdict = missing('missing-b');
   // Counts only, never names.
   return make('people', a.people.length, b.people.length, verdict);
 }
@@ -332,8 +365,8 @@ function remarksDiff(a: string | undefined, b: string | undefined): FieldDiff | 
   const lb = b?.length;
   if (na === nb) return make('remarks', la, lb, { class: 'equivalent' });
   // One side saying everything the other says, and more, is the other side missing something.
-  const within = (part: string, whole: string) => part === '' || ` ${whole} `.includes(` ${part} `);
-  if (within(na, nb)) return make('remarks', la, lb, missing('missing-a'));
-  if (within(nb, na)) return make('remarks', la, lb, missing('missing-b'));
+  const inside = (part: string, whole: string) => part === '' || ` ${whole} `.includes(` ${part} `);
+  if (inside(na, nb)) return make('remarks', la, lb, missing('missing-a'));
+  if (inside(nb, na)) return make('remarks', la, lb, missing('missing-b'));
   return make('remarks', la, lb, { class: 'real' });
 }

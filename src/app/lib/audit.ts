@@ -1,5 +1,5 @@
 /** Display and input helpers for the audit screen. Pure; no DOM. */
-import { COLUMN_PRESETS, type SourceRecord } from '@core/importers';
+import { COLUMN_PRESETS, type NameOrder, type SourceRecord } from '@core/importers';
 import type {
   BulkDecision,
   Decision,
@@ -12,6 +12,7 @@ import type {
 } from '@core/reconcile';
 import { formatDecimal, parseDuration } from '@core/time/duration';
 import { formatHours, formatInt } from './format';
+import { writtenName } from './names';
 
 export const SIDE_LABEL: Record<Side, string> = { a: 'LogTen', b: 'ForeFlight' };
 
@@ -169,7 +170,11 @@ export function displayTyped(field: DecisionField, value: string | number | bool
 }
 
 /** What one app says about a field, for people to read. */
-export function displayValue(r: SourceRecord, field: DecisionField): string {
+export function displayValue(
+  r: SourceRecord,
+  field: DecisionField,
+  nameOrder: NameOrder = 'family-first',
+): string {
   switch (field) {
     case 'landings':
       return landingsText(r);
@@ -182,7 +187,7 @@ export function displayValue(r: SourceRecord, field: DecisionField): string {
     case 'people':
       return r.people.length === 0
         ? BLANK
-        : r.people.map((p) => `${p.name} (${p.role})`).join(', ');
+        : r.people.map((p) => `${writtenName(p.name, nameOrder)} (${p.role})`).join('; ');
     case 'kind':
       return KIND_TEXT[r.kind] ?? r.kind;
     case 'rule':

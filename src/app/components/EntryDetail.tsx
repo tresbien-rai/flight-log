@@ -1,3 +1,5 @@
+import type { NameOrder } from '@core/importers';
+import { personName } from '../lib/names';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { DURATION_FIELDS, type Approach, type DurationField, type Entry } from '@core/model';
 import type { LogbookIndex } from '@core/query';
@@ -110,6 +112,7 @@ export function EntryDetail({
   findings,
   onClose,
   sheet,
+  nameOrder,
 }: {
   entry: Entry;
   index: LogbookIndex;
@@ -117,8 +120,13 @@ export function EntryDetail({
   onClose: () => void;
   /** True when shown as a full-screen sheet rather than a side pane. */
   sheet: boolean;
+  nameOrder: NameOrder;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const crewName = (personId: string) => {
+    const person = index.person(personId);
+    return person ? personName(person, nameOrder) : personId;
+  };
   const backRef = useRef<HTMLButtonElement>(null);
 
   // A new entry starts at the top; a newly opened sheet takes focus so Back is one keypress away.
@@ -311,7 +319,7 @@ export function EntryDetail({
                 {entry.crew.map((c, i) => (
                   <div key={`${c.personId}:${i}`} className="detail-row">
                     <dt>{CREW_ROLES[c.role] ?? c.role}</dt>
-                    <dd>{index.person(c.personId)?.name ?? c.personId}</dd>
+                    <dd>{crewName(c.personId)}</dd>
                   </div>
                 ))}
               </dl>
