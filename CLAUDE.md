@@ -12,3 +12,6 @@
 - **Design.** Decisions live in `docs/DESIGN.md`; update it when behaviour changes.
 - **Start here.** `docs/HANDOFF.md` has the current state, known gaps and the next step. Keep it
   current when a milestone lands.
+- **Branches and merging.** Work on a branch and open a pull request into `main` (Railway
+  deploys `main`). When CI passes on a pull request you opened and it has no conflicts or
+  unanswered review comments, merge it yourself without waiting for the pilot, then tell them.
