@@ -18,7 +18,7 @@ Last updated: milestone 5, automatic rounding and flight numbers, fix list.
 | 6–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
-  `main` by pull request. GitHub's default branch may still be the first working branch
+  `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). GitHub's default branch may still be the first working branch
   (`claude/clever-gauss-07u08g`); switch it to `main` in the repository settings.
 - **Hosting:** <https://web-production-30875dbb.up.railway.app>. Railway project "Flight Log", service `web`, built from `main` on every
   push. `npm run build` then `npm start` (a static file server over `dist/`). Nothing on
@@ -185,6 +185,8 @@ DESIGN §5 records three requests from the pilot: a PF tick that logs one takeof
 landing by day or night from the off/on times (the sun calculation already exists);
 go-arounds or missed approaches as ticks with a short reason each; and an employment
 timeline whose present employer supplies defaults, including the carrier's own code and a
-choice of marketing partner so only the four digits of a flight number are typed.
+choice of marketing partner so only the four digits of a flight number are typed. Flight
+numbers then store the ICAO operating number plus the marketing carrier, shown as
+`SKW(DL)5123` or ruby-style (DESIGN §5).
 
 Open questions for the pilot are listed in DESIGN §12.
