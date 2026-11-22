@@ -29,6 +29,8 @@ export class FlightLogDb extends Dexie {
   settings!: EntityTable<SettingRow, 'key'>;
   sources!: EntityTable<SourceFile, 'source'>;
   decisions!: EntityTable<DecisionRow, 'key'>;
+  /** The pilot's own data that is not part of any book, one document per key. */
+  profile!: EntityTable<SettingRow, 'key'>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -44,6 +46,9 @@ export class FlightLogDb extends Dexie {
     this.version(2).stores({
       sources: 'source',
       decisions: 'key',
+    });
+    this.version(3).stores({
+      profile: 'key',
     });
   }
 }

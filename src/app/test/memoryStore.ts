@@ -1,5 +1,6 @@
 import type { SourceId } from '@core/importers';
 import type { Logbook } from '@core/model';
+import { NO_EDITS, type AircraftEdits } from '@core/aircraft';
 import { decisionKey, type Decision } from '@core/reconcile';
 import {
   BOOK_IDS,
@@ -15,6 +16,7 @@ export function createMemoryStore(): LogbookStore & { settings: Map<string, unkn
   const settings = new Map<string, unknown>();
   const sources = new Map<SourceId, SourceFile>();
   const decisions = new Map<string, Decision>();
+  let aircraftEdits: AircraftEdits = NO_EDITS;
   const listeners = new Set<() => void>();
   const notify = () => queueMicrotask(() => [...listeners].forEach((l) => l()));
 
@@ -41,6 +43,11 @@ export function createMemoryStore(): LogbookStore & { settings: Map<string, unkn
     },
     loadSourceFile: async (source) => sources.get(source),
     listDecisions: async () => [...decisions.values()],
+    loadAircraftEdits: async () => aircraftEdits,
+    saveAircraftEdits: async (edits) => {
+      aircraftEdits = edits;
+      notify();
+    },
     putDecisions: async (list) => {
       for (const d of list) decisions.set(decisionKey(d), d);
       notify();

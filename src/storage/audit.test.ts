@@ -188,3 +188,21 @@ describe('writeMainBook', () => {
     expect((await store.loadBook('logten'))!.entries.length).toBe(outcome.audit.a.records.length);
   });
 });
+
+describe('aircraft edits', () => {
+  it('start empty, are saved whole, survive a re-import and notify subscribers', async () => {
+    const store = await bothImported();
+    expect(await store.loadAircraftEdits()).toEqual({ types: {}, airframes: {} });
+    const listener = vi.fn();
+    const off = store.subscribe(listener);
+    const edits = {
+      types: { 'C-172S': { notes: 'Club aircraft' } },
+      airframes: { 'af:N101AB': { serialNumber: '172S9999' } },
+    };
+    await store.saveAircraftEdits(edits);
+    await vi.waitFor(() => expect(listener).toHaveBeenCalled());
+    await importFile(store, logten, { now: () => LATER });
+    expect(await store.loadAircraftEdits()).toEqual(edits);
+    off();
+  });
+});

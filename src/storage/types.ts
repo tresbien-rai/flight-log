@@ -7,6 +7,7 @@
  */
 import type { ConversionNote, ImportIssue, SourceId } from '@core/importers';
 import type { Logbook } from '@core/model';
+import type { AircraftEdits } from '@core/aircraft';
 import type { Decision } from '@core/reconcile';
 
 export const BOOK_IDS = ['main', 'logten', 'foreflight'] as const;
@@ -59,12 +60,16 @@ export interface LogbookStore {
   listDecisions(): Promise<Decision[]>;
   /** Adds decisions, each replacing any earlier one with the same `decisionKey`. */
   putDecisions(decisions: readonly Decision[]): Promise<void>;
+  /** The pilot's corrections to aircraft and types; applied to every book when it is read. */
+  loadAircraftEdits(): Promise<AircraftEdits>;
+  saveAircraftEdits(edits: AircraftEdits): Promise<void>;
+
   /** Removes decisions by `decisionKey`. Unknown keys are ignored. */
   removeDecisions(keys: readonly string[]): Promise<void>;
 
   getSetting<T>(key: string): Promise<T | undefined>;
   setSetting<T>(key: string, value: T): Promise<void>;
 
-  /** Called after any write to books, source files or decisions (not settings). Returns an unsubscribe function. */
+  /** Called after any write to books, source files, decisions or aircraft edits (not settings). Returns an unsubscribe function. */
   subscribe(listener: () => void): () => void;
 }

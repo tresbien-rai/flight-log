@@ -26,6 +26,7 @@ export interface AircraftType {
   variantOf?: string;
   /** Certificated for two pilots. */
   multiPilot?: boolean;
+  notes?: string;
   complex: boolean;
   highPerformance: boolean;
   taa: boolean;
@@ -53,6 +54,7 @@ export interface Airframe {
     Pick<AircraftType, 'complex' | 'highPerformance' | 'taa' | 'pressurized' | 'retractable'>
   >;
   operatorId?: string;
+  notes?: string;
 }
 
 export interface TrainingDevice {

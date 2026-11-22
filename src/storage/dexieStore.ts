@@ -1,10 +1,12 @@
 import type { Table } from 'dexie';
 import type { Logbook } from '@core/model';
+import { NO_EDITS, type AircraftEdits } from '@core/aircraft';
 import { decisionKey } from '@core/reconcile';
 import { FlightLogDb, type Row } from './db';
 import { BOOK_IDS, type BookId, type LogbookStore } from './types';
 
 const CHANNEL_NAME = 'flight-log';
+const AIRCRAFT_EDITS = 'aircraftEdits';
 
 function withBook<T extends object>(book: BookId, items: readonly T[]): Row<T>[] {
   return items.map((item) => ({ ...item, book }));
@@ -130,6 +132,20 @@ export function createDexieStore(db: FlightLogDb = new FlightLogDb()): LogbookSt
       await db.decisions.bulkPut(
         decisions.map((decision) => ({ key: decisionKey(decision), decision })),
       );
+      announce();
+    },
+
+    async loadAircraftEdits() {
+      const row = await db.profile.get(AIRCRAFT_EDITS);
+      const edits = row?.value as Partial<AircraftEdits> | undefined;
+      return {
+        types: edits?.types ?? NO_EDITS.types,
+        airframes: edits?.airframes ?? NO_EDITS.airframes,
+      };
+    },
+
+    async saveAircraftEdits(edits) {
+      await db.profile.put({ key: AIRCRAFT_EDITS, value: edits });
       announce();
     },
 
