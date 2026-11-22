@@ -21,7 +21,9 @@ Last updated: end of milestone 7 (experience report). Next: milestone 8, Drive s
 | 9–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
-  `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). GitHub's default branch may still be the first working branch
+  `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). In the
+  milestone 7 session the agent's merge was blocked by the session's own permission check, and
+  the pilot merged by hand; if that happens, say so and leave the merge to the pilot. GitHub's default branch may still be the first working branch
   (`claude/clever-gauss-07u08g`); switch it to `main` in the repository settings.
 - **Hosting:** <https://web-production-30875dbb.up.railway.app>. Railway project "Flight Log", service `web`, built from `main` on every
   push. `npm run build` then `npm start` (a static file server over `dist/`). Nothing on
@@ -204,20 +206,54 @@ needed yet), certificates as structured data rather than text.
 
 ## Milestone 8: where to start
 
-Goal: data survives a lost iPad (DESIGN §3.3). The pilot does not plan to rely on the app
-for audit, transfer or reports until milestone 9 is done, so there is no rush to ship this
-before manual entry; it may be worth asking whether to take milestone 9 first.
+Goal: data survives a lost iPad (DESIGN §3.1, §3.3). Before starting, ask the pilot whether to
+do milestone 9 (manual entry) first: they do not plan to rely on the app until 9 is done, and
+until then nearly everything on the device can be rebuilt (see below).
+
+**What is on the device today** (Dexie database `flight-log`, schema version 3, `src/storage/db.ts`):
+
+| Table                                                        | What                                                                                                      | Can it be rebuilt?                                                                                                           |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `entries`, `airframes`, `aircraftTypes`, `devices`, `people` | three books (`logten`, `foreflight`, `main`), rows keyed by book                                          | imported books: yes, from `sources`; `main`: yes, from `sources` + `decisions` (until milestone 9 adds hand-entered flights) |
+| `books`                                                      | info per book (file name, import time, notes)                                                             | yes, with the books                                                                                                          |
+| `sources`                                                    | the two export files as text (about 1.6 MB together)                                                      | only from the apps themselves                                                                                                |
+| `decisions`                                                  | every audit decision                                                                                      | **no**                                                                                                                       |
+| `profile`                                                    | aircraft edits (`aircraftEdits`), saved report layouts (`doc:reportLayouts`), pilot details (`doc:pilot`) | **no**                                                                                                                       |
+| `settings`                                                   | display choices, selected book, working report layout                                                     | not worth backing up except name order and flight-number style                                                               |
+
+Measured on the real exports: each imported book is about 1.6–1.7 MB of JSON, the source files
+1.6 MB, decisions and edits small. DESIGN §3.3 guessed 2 MB for `logbook.json`; backing up
+everything would be about 5–7 MB. A smaller backup holds the source files, decisions, profile
+and `main`, and rebuilds the two imported books on restore with `importFile`. Settle which with
+the pilot.
+
+**Timestamps for merging two devices:** entries have `createdAt` / `updatedAt` / `deletedAt`;
+decisions have `decidedAt`; aircraft edits and profile documents have none. Record-by-record
+merge (DESIGN §3.3) needs a timestamp on each, or whole-document "newest wins" for those.
+Before milestone 9 nothing but the audit and the aircraft screens writes, so two-device merge
+matters little until then.
+
+**Google Drive needs the pilot first:** a Google Cloud project with the Drive API enabled, an
+OAuth client ID of type "Web application", and authorised JavaScript origins for the Railway
+URL and `http://localhost:5173`. The client ID is not secret; pass it at build time
+(`VITE_GOOGLE_CLIENT_ID`, set on Railway). Use Google Identity Services' token client with the
+`drive.file` scope (the app sees only files it created). The known risk is sign-in from the
+iPad home-screen app (popups in standalone mode, one-hour tokens with no silent renewal;
+DESIGN §3.1): try that on the real iPad before building much on it. Write the Drive calls
+behind an interface so tests use an in-memory fake; this container may not reach Google.
 
 A suggested order:
 
-1. **Contract first:** the file shape (`logbook.json`: every book, decisions, aircraft edits,
-   profile documents, settings worth keeping, schema version) and pure `toBackup` /
-   `fromBackup` in core with round-trip tests.
-2. **Export and restore a backup file by hand** (download and pick a file), which needs no
-   Google account and is useful on its own.
-3. **Google sign-in and Drive** with the `drive.file` scope; the visible "Flight Log"
-   folder; dated backups before every import or bulk change.
-4. **Merging two devices** by record `updatedAt` with tombstones, and Drive's version check.
+1. **Contract first** (`src/core/backup/types.ts`): the file shape with a schema version, and
+   pure `toBackup` / `fromBackup` plus migrations, round-trip tested against a saved sample.
+2. **Download a backup and restore one by hand** in Settings. Needs no Google account, works
+   offline, and is useful on its own. Restoring replaces what is on the device after a
+   confirmation that names what will be lost.
+3. **Drive**: sign in, create the visible "Flight Log" folder, upload `logbook.json`, write
+   `backups/logbook-YYYY-MM-DD.json` at most once a day and before every import or bulk
+   change, show when the last successful sync was. An expired sign-in only delays sync.
+4. **Two devices**: merge on sync by record timestamps with tombstones, upload with Drive's
+   version check and retry on conflict.
 
 ## Asked for, for manual entry (milestone 9)
 
