@@ -301,6 +301,46 @@ describe('audit screen', () => {
     expect(await screen.findByRole('group', { name: /Night/ })).toHaveTextContent('Your choice');
   });
 
+  it('pairs two one-app-only entries by hand, and unpairs them', async () => {
+    const user = userEvent.setup();
+    const store = await auditStore();
+    renderApp(store, '/audit');
+    await user.click((await screen.findAllByRole('button', { name: /12 Mar 2024/ }))[0]!);
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'It is the same flight as an entry in ForeFlight…',
+      }),
+    );
+    const list = screen.getByRole('list', { name: 'Pair with an entry in ForeFlight' });
+    const candidate = within(list).getByRole('button', { name: /2024-03-10/ });
+    expect(candidate).toHaveTextContent('2 days apart');
+    await user.click(candidate);
+
+    expect(await screen.findByText('You paired these two rows by hand.')).toBeInTheDocument();
+    await waitFor(() => expect(rows()).toHaveLength(3));
+    expect(await store.listDecisions()).toMatchObject([{ kind: 'pair', match: 'manual' }]);
+
+    await user.click(screen.getByRole('button', { name: 'Unpair' }));
+    await waitFor(() => expect(rows()).toHaveLength(4));
+    expect(await store.listDecisions()).toEqual([]);
+  });
+
+  it('moves through the list with the arrow keys, opening each flight beside it', async () => {
+    const user = userEvent.setup();
+    renderApp(await auditStore(), '/audit');
+    await screen.findByRole('list', { name: 'Flights to review' });
+    rows()[0]!.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(rows()[1]).toHaveFocus();
+    expect(await screen.findByText(/paired despite different aircraft/)).toBeInTheDocument();
+    await user.keyboard('{End}');
+    expect(rows()[3]).toHaveFocus();
+    expect(await screen.findByText(/This entry is only in LogTen/)).toBeInTheDocument();
+    await user.keyboard('{ArrowDown}{Home}');
+    expect(rows()[0]).toHaveFocus();
+    expect(await screen.findByRole('group', { name: /Night/ })).toBeInTheDocument();
+  });
+
   it('builds my logbook and opens it', async () => {
     const user = userEvent.setup();
     const store = await auditStore();

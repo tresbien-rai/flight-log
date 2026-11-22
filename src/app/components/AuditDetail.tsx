@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import type { PairCandidate } from '../lib/audit';
 import type {
   DecisionField,
   FieldChoice,
@@ -30,6 +31,10 @@ export interface DetailActions {
   setMatch: (pair: ResolvedPair, match: 'confirmed' | 'rejected' | null) => void;
   setOrphan: (orphan: ResolvedOrphan, action: 'keep' | 'drop' | undefined) => void;
   setRule: (rule: OperatingRule | undefined) => void;
+  /** Pairs a one-app-only entry with a row from the other app. */
+  pairWith: (orphan: ResolvedOrphan, candidate: PairCandidate) => void;
+  /** Undoes a pairing made by hand. */
+  unpair: (pair: ResolvedPair) => void;
   /** Present when this orphan came from a pairing the pilot rejected. */
   undoReject?: (orphan: ResolvedOrphan) => void;
 }
@@ -183,6 +188,73 @@ function Summary({ record, label }: { record: ResolvedPair['a']; label: string }
   );
 }
 
+const PICKER_PAGE = 8;
+
+function PairPicker({
+  orphan,
+  candidates,
+  onPick,
+}: {
+  orphan: ResolvedOrphan;
+  candidates: readonly PairCandidate[];
+  onPick: (candidate: PairCandidate) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState(PICKER_PAGE);
+  const other = SIDE_LABEL[orphan.side === 'a' ? 'b' : 'a'];
+  if (candidates.length === 0) return null;
+  if (!open) {
+    return (
+      <div className="actions">
+        <button type="button" className="btn btn-link" onClick={() => setOpen(true)}>
+          It is the same flight as an entry in {other}…
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="pair-picker">
+      <p id={`picker-${orphan.fingerprint}`} className="choice-name">
+        Pair with an entry in {other}
+      </p>
+      <ul className="pair-candidates" aria-labelledby={`picker-${orphan.fingerprint}`}>
+        {candidates.slice(0, limit).map((c) => (
+          <li key={c.fingerprint}>
+            <button type="button" className="pair-candidate" onClick={() => onPick(c)}>
+              <span className="pair-candidate-main">
+                {c.record.date} · {c.record.tail ?? 'no aircraft'} · {routeText(c.record)}
+                {c.record.durations.total
+                  ? ` · ${displayTyped('durations.total', c.record.durations.total)} h`
+                  : c.record.durations.simulator
+                    ? ` · ${displayTyped('durations.simulator', c.record.durations.simulator)} h`
+                    : ''}
+              </span>
+              <span className="pair-candidate-note">
+                {c.daysApart === 0
+                  ? 'Same day'
+                  : `${c.daysApart} ${c.daysApart === 1 ? 'day' : 'days'} apart`}
+                {c.pairedWith
+                  ? ' · now paired with another entry; that one becomes one-app-only'
+                  : ''}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="actions">
+        {candidates.length > limit ? (
+          <button type="button" className="btn" onClick={() => setLimit(limit + PICKER_PAGE)}>
+            Show more
+          </button>
+        ) : null}
+        <button type="button" className="btn" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AuditDetail({
   pair,
   orphan,
@@ -191,6 +263,7 @@ export function AuditDetail({
   sheet,
   prefs,
   rule,
+  candidates,
 }: {
   pair?: ResolvedPair;
   orphan?: ResolvedOrphan;
@@ -200,6 +273,8 @@ export function AuditDetail({
   prefs: DisplayPrefs;
   /** Where this entry's operating rule comes from. */
   rule: RuleStatus;
+  /** For a one-app-only entry: rows it could be paired with. */
+  candidates?: readonly PairCandidate[];
 }) {
   const merged = pair?.record ?? orphan!.record;
   const record = pair?.a ?? orphan!.record;
@@ -223,7 +298,22 @@ export function AuditDetail({
             </p>
           </header>
 
-          {pair && pair.tier !== 'exact' ? (
+          {pair && pair.tier === 'manual' ? (
+            <section className="match-box" aria-label="Pairing">
+              <p>You paired these two rows by hand.</p>
+              <dl className="detail-rows">
+                <Summary record={pair.a} label={SIDE_LABEL.a} />
+                <Summary record={pair.b} label={SIDE_LABEL.b} />
+              </dl>
+              <div className="actions">
+                <button type="button" className="btn" onClick={() => actions.unpair(pair)}>
+                  Unpair
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {pair && pair.tier !== 'exact' && pair.tier !== 'manual' ? (
             <section className={`match-box match-box--${pair.match}`} aria-label="Pairing">
               <p>
                 {pair.match === 'unconfirmed'
@@ -376,6 +466,11 @@ export function AuditDetail({
                   </button>
                 ) : null}
               </div>
+              <PairPicker
+                orphan={orphan}
+                candidates={candidates ?? []}
+                onPick={(c) => actions.pairWith(orphan, c)}
+              />
             </section>
           ) : null}
         </div>

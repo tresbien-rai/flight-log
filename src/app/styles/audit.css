@@ -505,3 +505,52 @@
 .fix-should {
   font-weight: 600;
 }
+
+.pair-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+}
+
+.pair-candidates {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.pair-candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pair-candidates li:last-child .pair-candidate {
+  border-bottom: 0;
+}
+
+.pair-candidate:hover {
+  background: var(--select-bg);
+}
+
+.pair-candidate-main {
+  font-family: var(--font-ledger);
+  font-weight: 500;
+}
+
+.pair-candidate-note {
+  font-size: var(--fs-s);
+  color: var(--muted);
+}

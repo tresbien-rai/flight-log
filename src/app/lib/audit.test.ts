@@ -15,6 +15,7 @@ import {
   auditTotals,
   automaticCounts,
   fixList,
+  pairCandidates,
   decidedRules,
   proposalReason,
   proposalTitle,
@@ -330,5 +331,29 @@ describe('fixList', () => {
     ]);
     expect(fixList(r).a.map((f) => f.changes.map((c) => c.field))).toEqual([['durations.night']]);
     expect(fixList(r).b).toEqual([]);
+  });
+});
+
+describe('pairCandidates', () => {
+  const r = resolve(match, []);
+  const ground = r.orphans.find((o) => o.side === 'a')!; // 12 Mar, LogTen only
+  const sim = r.orphans.find((o) => o.side === 'b')!; // 10 Mar, ForeFlight only
+
+  it('offers every unpaired row of the other app, nearest date first', () => {
+    const c = pairCandidates(r, ground, 0);
+    expect(c.map((x) => [x.side, x.record.date, x.daysApart, x.pairedWith])).toEqual([
+      ['b', '2024-03-10', 2, undefined],
+    ]);
+    expect(c[0]!.fingerprint).toBe(sim.fingerprint);
+  });
+
+  it('adds paired rows close in date, nearest first, and only within the limit', () => {
+    const c = pairCandidates(r, sim, 7);
+    expect(c[0]).toMatchObject({ record: { date: '2024-03-12' }, daysApart: 2 });
+    const paired = c.filter((x) => x.pairedWith);
+    expect(paired.map((x) => x.record.date)).toEqual(['2024-03-05', '2024-03-04']);
+    expect(paired.map((x) => x.daysApart)).toEqual([5, 6]);
+    // The default reaches only a day either side.
+    expect(pairCandidates(r, sim).some((x) => x.pairedWith)).toBe(false);
   });
 });
