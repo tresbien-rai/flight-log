@@ -6,9 +6,12 @@ export type { EngineBucket } from './engines';
 export {
   airframeIdOf,
   applyAircraftEdits,
+  completeEdits,
+  newAirframe,
   NO_EDITS,
   parseConversionList,
   periodsFromChanges,
   withTypeFrom,
 } from './edits';
-export type { AircraftEdits, AirframeEdit, TypeEdit } from './edits';
+export type { AircraftEdits, AirframeEdit, DeviceEdit, TypeEdit } from './edits';
+export { silhouetteOf } from './silhouettes';

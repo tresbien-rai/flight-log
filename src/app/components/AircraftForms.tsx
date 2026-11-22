@@ -1,21 +1,30 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
+  airframeIdOf,
+  newAirframe,
   parseConversionList,
   periodsFromChanges,
+  silhouetteOf,
   withTypeFrom,
   type AircraftEdits,
   type AirframeEdit,
+  type DeviceEdit,
   type TypeEdit,
 } from '@core/aircraft';
-import type {
-  AircraftClass,
-  AircraftType,
-  Airframe,
-  Dated,
-  EngineType,
-  Logbook,
+import {
+  SILHOUETTES,
+  type AircraftClass,
+  type AircraftType,
+  type Airframe,
+  type Dated,
+  type DeviceLevel,
+  type EngineType,
+  type Logbook,
+  type Silhouette,
+  type TrainingDevice,
 } from '@core/model';
-import { classText, currentTail, engineText } from '../lib/aircraft';
+import { classText, currentTail, engineText, silhouetteText } from '../lib/aircraft';
+import { TypeIcon } from './TypeIcon';
 import { formatInt } from '../lib/format';
 
 const CLASSES: AircraftClass[] = [
@@ -91,6 +100,7 @@ export function TypeForm({
     engine: type.engine,
     typeRating: type.typeRating ?? '',
     variantOf: type.variantOf ?? '',
+    silhouette: type.silhouette ?? '',
     notes: type.notes ?? '',
     ...Object.fromEntries(FLAGS.map(([k]) => [k, Boolean(type[k])])),
   } as Record<string, string | boolean>);
@@ -107,6 +117,7 @@ export function TypeForm({
       engine: f.engine as EngineType,
       typeRating: text('typeRating') || undefined,
       variantOf: text('variantOf') || undefined,
+      silhouette: (f.silhouette as Silhouette | '') || undefined,
       notes: text('notes') || undefined,
       ...Object.fromEntries(FLAGS.map(([k]) => [k, f[k] as boolean])),
     };
@@ -177,6 +188,33 @@ export function TypeForm({
               </option>
             ))}
         </select>
+      </label>
+      <label className="field">
+        <span>Drawing</span>
+        <span className="field-with-icon">
+          <TypeIcon
+            silhouette={
+              (f.silhouette as Silhouette | '') ||
+              silhouetteOf({
+                class: f.class as AircraftClass,
+                engine: f.engine as EngineType,
+                multiPilot: f.multiPilot as boolean,
+              })
+            }
+          />
+          <select
+            className="input"
+            value={f.silhouette as string}
+            onChange={(e) => set('silhouette', e.target.value)}
+          >
+            <option value="">From class and engine</option>
+            {SILHOUETTES.map((sil) => (
+              <option key={sil} value={sil}>
+                {silhouetteText(sil)}
+              </option>
+            ))}
+          </select>
+        </span>
       </label>
       <fieldset className="edit-flags">
         <legend className="choice-name">Attributes</legend>
@@ -501,6 +539,210 @@ export function ConversionForm({
           Cancel
         </button>
       </div>
+    </form>
+  );
+}
+
+const LEVELS: DeviceLevel[] = ['FFS', 'FTD', 'AATD', 'BATD'];
+
+/** Edits a training device, or merges it into another that is the same device. */
+export function DeviceForm({
+  device,
+  devices,
+  typeIds,
+  edited,
+  onSave,
+  onReset,
+  onCancel,
+}: {
+  device: TrainingDevice;
+  devices: readonly TrainingDevice[];
+  typeIds: readonly string[];
+  edited: boolean;
+  onSave: (edit: DeviceEdit) => void;
+  onReset: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(device.name);
+  const [level, setLevel] = useState<DeviceLevel>(device.level);
+  const [represents, setRepresents] = useState(device.represents ?? '');
+  const [notes, setNotes] = useState(device.notes ?? '');
+  const [mergedInto, setMergedInto] = useState('');
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (mergedInto !== '') {
+      onSave({ mergedInto });
+      return;
+    }
+    const next: DeviceEdit = {
+      name: name.trim() || device.name,
+      level,
+      represents: represents || undefined,
+      notes: notes.trim() || undefined,
+    };
+    onSave(
+      Object.fromEntries(
+        Object.entries(next).filter(([k, v]) => device[k as keyof TrainingDevice] !== v),
+      ) as DeviceEdit,
+    );
+  };
+
+  return (
+    <form className="edit-form" onSubmit={submit} aria-label={`Edit ${device.name}`}>
+      <label className="field">
+        <span>Name</span>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Level</span>
+        <select
+          className="input"
+          value={level}
+          onChange={(e) => setLevel(e.target.value as DeviceLevel)}
+        >
+          {LEVELS.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Represents</span>
+        <select
+          className="input"
+          value={represents}
+          onChange={(e) => setRepresents(e.target.value)}
+        >
+          <option value="">No particular type</option>
+          {typeIds.map((id) => (
+            <option key={id} value={id}>
+              {id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Notes</span>
+        <textarea
+          className="input textarea"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
+      {devices.length > 1 ? (
+        <label className="field">
+          <span>Same device as</span>
+          <select
+            className="input"
+            value={mergedInto}
+            onChange={(e) => setMergedInto(e.target.value)}
+          >
+            <option value="">No other device</option>
+            {devices
+              .filter((d) => d.id !== device.id)
+              .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+          </select>
+          {mergedInto !== '' ? (
+            <span className="history-note">
+              Its sessions move to {devices.find((d) => d.id === mergedInto)?.name}, and{' '}
+              {device.name} leaves the list.
+            </span>
+          ) : null}
+        </label>
+      ) : null}
+      <FormActions onCancel={onCancel} onReset={edited ? onReset : undefined} />
+    </form>
+  );
+}
+
+/** Adds an aircraft neither app knows yet. */
+export function AddAircraftForm({
+  logbook,
+  typeIds,
+  onSave,
+  onCancel,
+}: {
+  logbook: Logbook;
+  typeIds: readonly string[];
+  onSave: (frame: Airframe) => void;
+  onCancel: () => void;
+}) {
+  const [tail, setTail] = useState('');
+  const [typeId, setTypeId] = useState(typeIds[0] ?? '');
+  const [serial, setSerial] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string>();
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const value = tail.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{2,10}$/.test(value)) {
+      setError('Enter the tail number, such as N718SK.');
+      return;
+    }
+    const taken = logbook.airframes.some(
+      (f) => f.id === airframeIdOf(value) || f.registrations.some((r) => r.value === value),
+    );
+    if (taken) {
+      setError(`${value} is already in the list.`);
+      return;
+    }
+    onSave(
+      newAirframe(value, typeId, {
+        serialNumber: serial.trim() || undefined,
+        notes: notes.trim() || undefined,
+      }),
+    );
+  };
+
+  return (
+    <form className="edit-form" onSubmit={submit} aria-label="Add an aircraft">
+      <label className="field">
+        <span>Tail number</span>
+        <input
+          className="input"
+          value={tail}
+          autoCapitalize="characters"
+          onChange={(e) => {
+            setTail(e.target.value);
+            setError(undefined);
+          }}
+        />
+      </label>
+      <label className="field">
+        <span>Type</span>
+        <select className="input" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+          {typeIds.map((id) => (
+            <option key={id} value={id}>
+              {id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Serial number</span>
+        <input className="input" value={serial} onChange={(e) => setSerial(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Notes</span>
+        <textarea
+          className="input textarea"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
+      {error ? (
+        <p className="typed-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <FormActions onCancel={onCancel} />
     </form>
   );
 }

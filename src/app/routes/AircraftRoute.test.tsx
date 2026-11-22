@@ -146,6 +146,8 @@ describe('aircraft screen', () => {
     expect(await s.loadAircraftEdits()).toEqual({
       types: { 'C-172S': { taa: true, notes: 'Club fleet' } },
       airframes: {},
+      devices: {},
+      added: {},
     });
 
     await user.click(within(after).getByRole('button', { name: 'Edit' }));
@@ -204,5 +206,105 @@ describe('aircraft screen', () => {
         { value: 'CRJ-550', from: '2025-01-01' },
       ]),
     );
+  });
+
+  it('shows each type’s drawing in the list and its header', async () => {
+    renderApp(await store(), '/aircraft/types/CRJ-700');
+    const list = await screen.findByRole('list', { name: 'Types' });
+    const icons = [...list.querySelectorAll('svg[data-silhouette]')].map((svg) =>
+      svg.getAttribute('data-silhouette'),
+    );
+    // No drawing chosen: worked out from class and engine (a multi-pilot jet; a piston single).
+    expect(icons).toEqual(['airliner', 'low-wing-single']);
+    const detail = await screen.findByRole('complementary', { name: 'CRJ-700 detail' });
+    expect(detail.querySelector('svg.type-icon--large')).toHaveAttribute(
+      'data-silhouette',
+      'airliner',
+    );
+  });
+
+  it('chooses a drawing on the type form', async () => {
+    const user = userEvent.setup();
+    const s = await store();
+    renderApp(s, '/aircraft/types/CRJ-700');
+    await user.click(
+      within(await screen.findByRole('complementary', { name: 'CRJ-700 detail' })).getByRole(
+        'button',
+        {
+          name: 'Edit',
+        },
+      ),
+    );
+    await user.selectOptions(await screen.findByLabelText('Drawing'), 'regional-jet');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(async () =>
+      expect((await s.loadAircraftEdits()).types['CRJ-700']).toEqual({
+        silhouette: 'regional-jet',
+      }),
+    );
+  });
+
+  it('edits a simulator, and merges it into another', async () => {
+    const user = userEvent.setup();
+    const s = await store();
+    await s.replaceBook(
+      'logten',
+      {
+        ...(await s.loadBook('logten'))!,
+        devices: [
+          { id: 'dev:FFS', name: 'FFS 1', level: 'FFS', represents: 'CRJ-700' },
+          { id: 'dev:AATD', name: 'C172-AATD', level: 'AATD' },
+        ],
+      },
+      { updatedAt: '2025-01-01T00:00:00Z', issues: [], notes: [] },
+    );
+    renderApp(s, '/aircraft/simulators/dev%3AAATD');
+    await user.click(
+      within(await screen.findByRole('complementary', { name: 'C172-AATD detail' })).getByRole(
+        'button',
+        {
+          name: 'Edit',
+        },
+      ),
+    );
+    const form = await screen.findByRole('form', { name: 'Edit C172-AATD' });
+    await user.clear(within(form).getByLabelText('Name'));
+    await user.type(within(form).getByLabelText('Name'), 'Redbird SD');
+    await user.selectOptions(within(form).getByLabelText('Represents'), 'C-172S');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    const detail = await screen.findByRole('complementary', { name: 'Redbird SD detail' });
+    expect(within(detail).getByRole('link', { name: 'C-172S' })).toBeInTheDocument();
+
+    await user.click(within(detail).getByRole('button', { name: 'Edit' }));
+    const again = await screen.findByRole('form', { name: 'Edit Redbird SD' });
+    await user.selectOptions(within(again).getByLabelText('Same device as'), 'dev:FFS');
+    expect(again).toHaveTextContent('Its sessions move to FFS 1, and Redbird SD leaves the list.');
+    await user.click(within(again).getByRole('button', { name: 'Save' }));
+    const list = await screen.findByRole('list', { name: 'Simulators' });
+    await waitFor(() => expect(within(list).getAllByRole('link')).toHaveLength(1));
+  });
+
+  it('adds an aircraft by hand, refuses a tail already listed, and removes it again', async () => {
+    const user = userEvent.setup();
+    const s = await store();
+    renderApp(s, '/aircraft/aircraft');
+    await user.click(await screen.findByRole('button', { name: 'Add an aircraft…' }));
+    const form = await screen.findByRole('form', { name: 'Add an aircraft' });
+    await user.type(within(form).getByLabelText('Tail number'), 'n700');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    expect(within(form).getByRole('alert')).toHaveTextContent('N700 is already in the list.');
+
+    await user.clear(within(form).getByLabelText('Tail number'));
+    await user.type(within(form).getByLabelText('Tail number'), 'n550sk');
+    await user.selectOptions(within(form).getByLabelText('Type'), 'CRJ-550');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+
+    const detail = await screen.findByRole('complementary', { name: 'N550SK detail' });
+    expect(detail).toHaveTextContent('You added this aircraft.');
+    expect(within(detail).getByRole('link', { name: 'CRJ-550' })).toBeInTheDocument();
+    expect(Object.keys((await s.loadAircraftEdits()).added)).toEqual(['af:N550SK']);
+
+    await user.click(within(detail).getByRole('button', { name: 'Remove it' }));
+    await waitFor(async () => expect((await s.loadAircraftEdits()).added).toEqual({}));
   });
 });

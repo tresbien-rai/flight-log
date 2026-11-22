@@ -359,7 +359,9 @@ interface TrainingDevice { id: string; name: string; level: 'FFS' | 'FTD' | 'AAT
 - No photos. Later, possibly a simple silhouette icon per type, as flight trackers show.
 - No favourite or default flags: defaults for new entries come from the career / employer timeline (§5).
 
-As built so far: an **Aircraft** screen (`src/app/routes/AircraftRoute.tsx`) for the book being shown, with three lists (types, aircraft, simulators) sorted by time, each with a detail pane: a type's attributes, its aircraft and simulators; an aircraft's type and registrations over time, serial number and differences from its type; a simulator's level and the type it represents. "Show its flights" opens the logbook filtered by type, or by aircraft (`?aircraft=` in the URL, shown as a removable filter).
+As built: an **Aircraft** screen (`src/app/routes/AircraftRoute.tsx`) for the book being shown, with three lists (types, aircraft, simulators) sorted by time, each with a detail pane: a type's attributes, its aircraft and simulators; an aircraft's type and registrations over time, serial number and differences from its type; a simulator's level and the type it represents. "Show its flights" opens the logbook filtered by type, or by aircraft (`?aircraft=` in the URL, shown as a removable filter).
+**Simulators, added aircraft, drawings.** A simulator can be renamed, given its level, the type it represents and notes, or merged into another that is the same device (its sessions move there). An aircraft neither app knows can be added by hand (tail, type, serial number, notes); if a later import brings the same tail, the imported aircraft is kept and what the pilot entered applies to it as an edit. Each type shows a side-view drawing of its general shape, drawn for this app (`src/app/art/silhouettes.ts`): high-wing single, low-wing single, light twin, turboprop, regional jet with rear engines, airliner with engines under the wings, helicopter, plus one for simulators. A type names its drawing in the type list or on its edit form; otherwise it is worked out from class and engine (`silhouetteOf`). More drawings can be added later; the file says how.
+
 **Editing** (`src/core/aircraft/edits.ts`): the pilot's corrections are kept in their own store, apart from the imported books, and applied to every book whenever it is read, so a re-import never loses them. A type edit stores only the fields the pilot changed. An airframe edit replaces its type history and registrations, and sets serial number, TAA and notes. A type history is entered as changes ("converted to CRJ-550 on 2025-03-10"), and the form says how many flights move. A registration naming a tail that the import made into an aircraft of its own folds that aircraft in, moving its flights. A type that does not exist yet is created from the type list, or blank. "Record a fleet conversion" takes a pasted list of tails and dates for one type. "Undo my changes" removes the pilot's edit for that type or aircraft.
 
 ### 4.4 People, operators, airports
@@ -599,7 +601,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen and the logbook ledger (see §11.1). Milestone 5 has a working audit screen with operating-rule proposals (§7.2–§7.4); pairing by hand and type mapping are still to come.
+Milestones 0 to 6 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4) and aircraft management (§4.3). Milestone 7, the experience report (§8), is next.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

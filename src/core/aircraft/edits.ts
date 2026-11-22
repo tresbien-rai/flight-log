@@ -4,7 +4,7 @@
  * Imported books are replaced on every import, so edits are kept apart from them and applied
  * whenever a book is read. Pure.
  */
-import type { AircraftType, Airframe, Dated, Entry, Logbook } from '../model';
+import type { AircraftType, Airframe, Dated, Entry, Logbook, TrainingDevice } from '../model';
 import { catalogType } from './match';
 
 /** Fields of a type the pilot can change. A type id that is not in the book creates it. */
@@ -23,14 +23,40 @@ export interface AirframeEdit {
   notes?: string;
 }
 
+/** Fields of a training device the pilot can change. */
+export interface DeviceEdit extends Partial<Omit<TrainingDevice, 'id'>> {
+  /**
+   * Another device's id: this one is the same device under another name. Its sessions move
+   * there and it disappears.
+   */
+  mergedInto?: string;
+}
+
 export interface AircraftEdits {
   /** By type id. */
   types: Record<string, TypeEdit>;
   /** By airframe id (`af:<tail>`, the tail the import first saw). */
   airframes: Record<string, AirframeEdit>;
+  /** By device id (`dev:<name>`). */
+  devices: Record<string, DeviceEdit>;
+  /**
+   * Aircraft the pilot added by hand, by airframe id. When an import later brings the same
+   * tail, the imported aircraft is kept and this one's fields apply to it as an edit.
+   */
+  added: Record<string, Airframe>;
 }
 
-export const NO_EDITS: AircraftEdits = { types: {}, airframes: {} };
+export const NO_EDITS: AircraftEdits = { types: {}, airframes: {}, devices: {}, added: {} };
+
+/** Fills in parts an older stored copy does not have. */
+export function completeEdits(stored: Partial<AircraftEdits> | undefined): AircraftEdits {
+  return {
+    types: stored?.types ?? {},
+    airframes: stored?.airframes ?? {},
+    devices: stored?.devices ?? {},
+    added: stored?.added ?? {},
+  };
+}
 
 /** A type that does not exist yet: from the type list when it is listed, else blank. */
 function newType(id: string): AircraftType {
@@ -70,14 +96,31 @@ function defined<T extends object>(obj: T): Partial<T> {
  * through its registrations; nothing else about an entry changes.
  */
 export function applyAircraftEdits(logbook: Logbook, edits: AircraftEdits): Logbook {
-  const hasTypes = Object.keys(edits.types).length > 0;
-  const hasFrames = Object.keys(edits.airframes).length > 0;
-  if (!hasTypes && !hasFrames) return logbook;
+  const empty = (r: Record<string, unknown> | undefined) => !r || Object.keys(r).length === 0;
+  if (empty(edits.types) && empty(edits.airframes) && empty(edits.devices) && empty(edits.added)) {
+    return logbook;
+  }
+  const frameEdits: Record<string, AirframeEdit> = { ...edits.airframes };
+  const imported = new Set(logbook.airframes.map((f) => f.id));
+  const addedFrames: Airframe[] = [];
+  for (const [id, frame] of Object.entries(edits.added ?? {})) {
+    if (imported.has(id)) {
+      // The import knows this tail now: what the pilot entered still applies, under any edit.
+      const { configurations, registrations, serialNumber, overrides, notes } = frame;
+      frameEdits[id] = {
+        ...defined({ configurations, registrations, serialNumber, overrides, notes }),
+        ...frameEdits[id],
+      };
+    } else {
+      addedFrames.push(frame);
+    }
+  }
+  const allFrames = [...logbook.airframes, ...addedFrames];
 
   // Airframes: apply edits, then fold in airframes whose tail another airframe now claims.
-  const byId = new Map(logbook.airframes.map((f) => [f.id, f]));
+  const byId = new Map(allFrames.map((f) => [f.id, f]));
   const absorbedBy = new Map<string, string>();
-  for (const [id, edit] of Object.entries(edits.airframes)) {
+  for (const [id, edit] of Object.entries(frameEdits)) {
     if (!byId.has(id) || !edit.registrations) continue;
     for (const r of edit.registrations) {
       const other = `af:${r.value}`;
@@ -92,16 +135,43 @@ export function applyAircraftEdits(logbook: Logbook, edits: AircraftEdits): Logb
     }
   }
   const airframes: Airframe[] = [];
-  for (const frame of logbook.airframes) {
+  for (const frame of allFrames) {
     if (absorbedBy.has(frame.id)) continue;
-    const edit = edits.airframes[frame.id];
+    const edit = frameEdits[frame.id];
     airframes.push(edit ? { ...frame, ...defined(edit) } : frame);
   }
 
   // Types: edit the ones that exist, create the ones edits or airframes now name.
   const types = new Map(logbook.aircraftTypes.map((t) => [t.id, t]));
+  // Devices: apply edits, then fold merged devices into the one they are merged into.
+  const deviceEdits = edits.devices ?? {};
+  const deviceIds = new Set(logbook.devices.map((d) => d.id));
+  const mergedInto = new Map<string, string>();
+  for (const [id, edit] of Object.entries(deviceEdits)) {
+    const target = edit.mergedInto;
+    if (
+      deviceIds.has(id) &&
+      target &&
+      target !== id &&
+      deviceIds.has(target) &&
+      !deviceEdits[target]?.mergedInto
+    ) {
+      mergedInto.set(id, target);
+    }
+  }
+  const devices: TrainingDevice[] = logbook.devices
+    .filter((d) => !mergedInto.has(d.id))
+    .map((d) => {
+      const edit = deviceEdits[d.id];
+      if (!edit) return d;
+      const { mergedInto: _merged, ...fields } = edit;
+      void _merged;
+      return { ...d, ...defined(fields), id: d.id };
+    });
+
   const needed = new Set<string>(Object.keys(edits.types));
   for (const f of airframes) for (const c of f.configurations) needed.add(c.value);
+  for (const d of devices) if (d.represents) needed.add(d.represents);
   for (const id of needed) {
     if (!types.has(id)) types.set(id, newType(id));
   }
@@ -115,14 +185,20 @@ export function applyAircraftEdits(logbook: Logbook, edits: AircraftEdits): Logb
   ];
 
   const entries: Entry[] =
-    absorbedBy.size === 0
+    absorbedBy.size === 0 && mergedInto.size === 0
       ? logbook.entries
       : logbook.entries.map((e) => {
-          const to = e.airframeId === undefined ? undefined : absorbedBy.get(e.airframeId);
-          return to ? { ...e, airframeId: to } : e;
+          const frame = e.airframeId === undefined ? undefined : absorbedBy.get(e.airframeId);
+          const device = e.deviceId === undefined ? undefined : mergedInto.get(e.deviceId);
+          if (!frame && !device) return e;
+          return {
+            ...e,
+            ...(frame ? { airframeId: frame } : {}),
+            ...(device ? { deviceId: device } : {}),
+          };
         });
 
-  return { ...logbook, entries, airframes, aircraftTypes };
+  return { ...logbook, entries, airframes, aircraftTypes, devices };
 }
 
 /**
@@ -205,3 +281,18 @@ export function parseConversionList(text: string): {
 /** The airframe id the import gives a tail. */
 export const airframeIdOf = (tail: string): string => `af:${tail.trim().toUpperCase()}`;
 export { tailOf };
+
+/** A new aircraft as the pilot enters it: a tail, a type, and optionally a serial and notes. */
+export function newAirframe(
+  tail: string,
+  typeId: string,
+  extra: { serialNumber?: string; notes?: string } = {},
+): Airframe {
+  const value = tail.trim().toUpperCase();
+  return {
+    id: airframeIdOf(value),
+    registrations: [{ value }],
+    configurations: [{ value: typeId }],
+    ...defined(extra),
+  };
+}
