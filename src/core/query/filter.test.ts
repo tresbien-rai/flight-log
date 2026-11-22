@@ -104,6 +104,12 @@ describe('filterEntries', () => {
     expect(run({ onlyFlagged: false })).toEqual(['e1', 'e2', 'e3', 'e4']);
   });
 
+  it('keeps only listed entries, never deleted ones; an empty list keeps nothing', () => {
+    expect(run({ entryIds: ['e3', 'e1', 'e5'] })).toEqual(['e1', 'e3']);
+    expect(run({ entryIds: [] })).toEqual([]);
+    expect(run({ entryIds: ['e1', 'e2'], kinds: ['flight'], rules: ['121'] })).toEqual(['e2']);
+  });
+
   describe('text', () => {
     it('matches tail, airports, route, flight number, type id and model', () => {
       expect(run({ text: 'N999' })).toEqual(['e2']);
@@ -181,6 +187,7 @@ describe('isEmptyFilter', () => {
     { typeIds: ['t1'] },
     { seats: ['PIC' as const] },
     { onlyFlagged: true },
+    { entryIds: [] },
   ])('is false for %o', (f) => {
     expect(isEmptyFilter(f)).toBe(false);
   });

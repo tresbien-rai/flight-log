@@ -18,6 +18,7 @@ export function isEmptyFilter(filter: EntryFilter): boolean {
     !hasAny(filter.kinds) &&
     !hasAny(filter.typeIds) &&
     !hasAny(filter.seats) &&
+    filter.entryIds === undefined &&
     !filter.onlyFlagged
   );
 }
@@ -51,9 +52,11 @@ export function filterEntries(
 ): Entry[] {
   const needles = words(filter.text);
   const { dateFrom, dateTo, rules, kinds, typeIds, aircraftIds, seats, onlyFlagged } = filter;
+  const only = filter.entryIds === undefined ? undefined : new Set(filter.entryIds);
 
   return entries.filter((entry) => {
     if (entry.deletedAt !== undefined) return false;
+    if (only && !only.has(entry.id)) return false;
     if (hasAny(kinds) && !kinds.includes(entry.kind)) return false;
     if (hasAny(rules) && !rules.includes(entry.rule)) return false;
     if (hasAny(seats) && (entry.seat === undefined || !seats.includes(entry.seat))) return false;
