@@ -1,6 +1,6 @@
 # Flight Log — Design Document
 
-Status: **draft 2**, incorporating the pilot's answers to the first round of open questions. Nothing here is built yet except the repo scaffold.
+Status: **draft 2**, incorporating the pilot’s answers to the first round of open questions. Milestones 0–7 are built; sections marked "as built" describe what exists, the rest is the plan.
 
 ## 1. What this is
 
