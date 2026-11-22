@@ -348,6 +348,15 @@ interface TrainingDevice { id: string; name: string; level: 'FFS' | 'FTD' | 'AAT
 - A fleet conversion list can be pasted or imported in bulk (tail + effective date), since a company converts many airframes.
 - Validation flags entries within a few days of a configuration change for a second look, since the effective date is the easy thing to get wrong.
 
+**Screens (milestone 6), from what the pilot likes in LogTen and ForeFlight:**
+
+- Two browsable, editable lists: **Aircraft types** and **Aircraft** (airframes), plus training devices. Each row shows total time and number of flights ("1,324.2 h in 665 flights").
+- A type holds type code (with lookup against the built-in type list), make, model, category, class, engine, the attribute flags, a **multi-pilot** flag (the type needs two pilots), and notes.
+- An airframe holds its tails and types over time, year, serial number, operator, per-airframe overrides and notes.
+- Links between them: a type links to its airframes and to its flights; an airframe to its type and its flights (the logbook, filtered).
+- No photos. Later, possibly a simple silhouette icon per type, as flight trackers show.
+- No favourite or default flags: defaults for new entries come from the career / employer timeline (§5).
+
 ### 4.4 People, operators, airports
 
 - **Flight numbers** are stored in one form, designator then number with no space (`DL3939`, `SKW5123`, `9E5123`), and shown with or without a space as Settings says (default `DL 3939`). Search finds either form.
@@ -593,7 +602,7 @@ Milestones 0 to 4 are done. Milestone 4 has its first screens: the import screen
 | 3     | Validation engine                                             | Rule set runs over imported data from the command line                                            |
 | 4     | App shell + local storage                                     | Installable PWA; import files; browse entries; filter by rule, type, date                         |
 | 5     | Audit UI                                                      | Resolve differences, save decisions, re-import replays them. **First point of real usefulness.**  |
-| 6     | Aircraft management                                           | Airframes, registrations, configurations, bulk conversion entry                                   |
+| 6     | Aircraft management                                           | Type and aircraft lists with totals, registrations, configurations, bulk conversion entry         |
 | 7     | Experience report                                             | On screen, PDF, CSV                                                                               |
 | 8     | Drive sync + backups                                          | Data survives a lost iPad                                                                         |
 | 9     | Manual entry with profiles                                    | The app can become the master logbook                                                             |
