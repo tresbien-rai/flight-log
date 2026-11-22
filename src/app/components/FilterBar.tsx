@@ -71,12 +71,19 @@ function ToggleGroup<T extends string>({
 export function FilterBar({
   controls,
   types,
+  aircraftNames,
 }: {
   controls: FilterControls;
   /** Types the open book uses. */
   types: readonly AircraftType[];
+  /** Tail or device name by airframe or device id, for naming an aircraft filter. */
+  aircraftNames?: ReadonlyMap<string, string>;
 }) {
   const { filter, draftText, setDraftText, update, clear } = controls;
+  const aircraftLabel =
+    filter.aircraftIds.length === 1
+      ? (aircraftNames?.get(filter.aircraftIds[0]!) ?? '1 aircraft')
+      : `${filter.aircraftIds.length} aircraft`;
   const [expanded, setExpanded] = useState(false);
   // Read once per mount: the quick picks are "from today", which only changes overnight.
   const [today] = useState(() => todayIso());
@@ -205,6 +212,18 @@ export function FilterBar({
         >
           With findings
         </button>
+
+        {filter.aircraftIds.length > 0 ? (
+          <button
+            type="button"
+            className="btn btn-toggle"
+            aria-pressed="true"
+            onClick={() => update({ aircraftIds: [] })}
+            aria-label={`Showing ${aircraftLabel}; show every aircraft`}
+          >
+            {aircraftLabel} ×
+          </button>
+        ) : null}
 
         {active > 0 ? (
           <button type="button" className="btn btn-link" onClick={clear}>

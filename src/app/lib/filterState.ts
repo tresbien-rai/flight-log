@@ -13,6 +13,8 @@ export interface FilterState {
   rules: RuleKey[];
   kinds: EntryKind[];
   typeIds: string[];
+  /** Airframe or device ids, set by following a link from the aircraft screen. */
+  aircraftIds: string[];
   /** `YYYY-MM-DD` or empty. */
   dateFrom: string;
   dateTo: string;
@@ -28,6 +30,7 @@ export const DEFAULT_FILTER: FilterState = {
   rules: [],
   kinds: [],
   typeIds: [],
+  aircraftIds: [],
   dateFrom: '',
   dateTo: '',
   withFindings: false,
@@ -51,6 +54,7 @@ export function parseFilterState(params: URLSearchParams): FilterState {
     rules: pick(params.getAll('rule'), RULE_KEYS),
     kinds: pick(params.getAll('kind'), KINDS),
     typeIds: [...new Set(params.getAll('type').filter((t) => t !== ''))].sort(),
+    aircraftIds: [...new Set(params.getAll('aircraft').filter((t) => t !== ''))].sort(),
     dateFrom: date('from'),
     dateTo: date('to'),
     withFindings: params.get('findings') === '1',
@@ -65,6 +69,7 @@ export function serializeFilterState(state: FilterState): URLSearchParams {
   for (const r of state.rules) params.append('rule', r);
   for (const k of state.kinds) params.append('kind', k);
   for (const t of state.typeIds) params.append('type', t);
+  for (const a of state.aircraftIds) params.append('aircraft', a);
   if (state.dateFrom !== '') params.set('from', state.dateFrom);
   if (state.dateTo !== '') params.set('to', state.dateTo);
   if (state.withFindings) params.set('findings', '1');
@@ -72,13 +77,14 @@ export function serializeFilterState(state: FilterState): URLSearchParams {
   return params;
 }
 
-/** How many separate filters are on (text, rule, kind, type, dates, findings). */
+/** How many separate filters are on (text, rule, kind, type, aircraft, dates, findings). */
 export function countActiveFilters(state: FilterState): number {
   return [
     state.text.trim() !== '',
     state.rules.length > 0,
     state.kinds.length > 0,
     state.typeIds.length > 0,
+    state.aircraftIds.length > 0,
     state.dateFrom !== '' || state.dateTo !== '',
     state.withFindings,
   ].filter(Boolean).length;
@@ -109,6 +115,7 @@ export function toEntryFilter(state: FilterState): EntryFilter {
     rules: state.rules.flatMap((r) => RULE_VALUES[r]),
     kinds: state.kinds,
     typeIds: state.typeIds,
+    aircraftIds: state.aircraftIds,
     onlyFlagged: state.withFindings,
   };
 }

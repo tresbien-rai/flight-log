@@ -20,6 +20,7 @@ export function AppShell() {
   };
   const onImport = pathname.startsWith('/import');
   const onAudit = pathname.startsWith('/audit');
+  const onAircraft = pathname.startsWith('/aircraft');
   const onSettings = pathname.startsWith('/settings');
   const context: ShellContext = {
     books,
@@ -36,8 +37,14 @@ export function AppShell() {
       <header className="app-header">
         <span className="app-name">Flight Log</span>
         <nav className="app-nav" aria-label="Main">
-          <Link to="/" aria-current={onImport || onAudit || onSettings ? undefined : 'page'}>
+          <Link
+            to="/"
+            aria-current={onImport || onAudit || onSettings || onAircraft ? undefined : 'page'}
+          >
             Logbook
+          </Link>
+          <Link to="/aircraft" aria-current={onAircraft ? 'page' : undefined}>
+            Aircraft
           </Link>
           <Link to="/audit" aria-current={onAudit ? 'page' : undefined}>
             Audit

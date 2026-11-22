@@ -156,8 +156,23 @@
   .app-name {
     display: none;
   }
+  .app-header {
+    flex-wrap: wrap;
+    padding-top: 4px;
+  }
+  /* The book switcher keeps its own row-end; the tabs take a full row and scroll sideways. */
+  .book-switcher {
+    margin-left: auto;
+  }
+  .app-nav {
+    order: 2;
+    flex: 1 0 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
   .app-nav a {
     padding: 0 10px;
+    flex: none;
   }
   .book-switcher-label {
     display: none;

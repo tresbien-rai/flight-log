@@ -50,7 +50,7 @@ export function filterEntries(
   flagged?: ReadonlySet<string>,
 ): Entry[] {
   const needles = words(filter.text);
-  const { dateFrom, dateTo, rules, kinds, typeIds, seats, onlyFlagged } = filter;
+  const { dateFrom, dateTo, rules, kinds, typeIds, aircraftIds, seats, onlyFlagged } = filter;
 
   return entries.filter((entry) => {
     if (entry.deletedAt !== undefined) return false;
@@ -63,6 +63,10 @@ export function filterEntries(
       if (dateTo && entry.date > dateTo) return false;
     }
     if (onlyFlagged && !(flagged?.has(entry.id) ?? false)) return false;
+    if (hasAny(aircraftIds)) {
+      const id = entry.airframeId ?? entry.deviceId;
+      if (id === undefined || !aircraftIds.includes(id)) return false;
+    }
     if (hasAny(typeIds)) {
       const id = index.typeOf(entry)?.id;
       if (id === undefined || !typeIds.includes(id)) return false;
