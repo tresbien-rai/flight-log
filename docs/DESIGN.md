@@ -567,6 +567,28 @@ Certificates, medical, flight review and IPC dates are typed into a small profil
 
 Reports are pure functions in core: entries and a layout in, a set of tables out. The UI and the PDF only draw the tables.
 
+### 8.3 As built (milestone 7)
+
+`experienceReport(logbook, index, layout, { today, customFields })` in `src/core/reports` returns sections of rows and columns; every cell holds minutes or a count plus the ids of the entries behind it. The contract is `src/core/reports/types.ts`.
+
+- **Sections**, in print order: recent experience (look-backs), aircraft characteristics, category and class, engine type, operating rule, experience by aircraft type, simulators by device level, simulators by type represented. There is no separate custom-fields table: custom durations, counts and toggles are columns any flight section can show (a toggle counts the flights where it is set).
+- **What counts where.** Flight sections count flights only, under the type the airframe had that day; simulator sections count simulator sessions only; ground sessions and deleted entries appear nowhere. A simulator whose represented type the book has no record of (ForeFlight's bare `C172`) is listed under that code.
+- **Landings.** "Day landings" and "night landings" include touch-and-goes. Full-stop day and night landings are separate columns, off by default; ForeFlight's report prints full-stop counts under "day" and "night".
+- **Derived columns**, worked out per flight (agreed with the pilot): PIC night is the smaller of PIC and night; PIC cross-country and PIC instrument likewise; PIC turbine and PIC multi-engine are PIC time in such an aircraft.
+- **Characteristics** use the airframe's override (TAA) before the type. Turbine and turbojet-powered are the engine buckets of §4.3. Rows overlap, so this section and the look-backs have no total row.
+- **Type grouping**: our types (default), ICAO designator or type rating. With our types, a converted variant is a sub-line under its parent, or both sit under a "CRJ-700 family" line when that option is on; the family line is never added into the total.
+- **Rounding**: "once on each total" (exact minutes added) or "each flight to a tenth first", as ForeFlight does. The report states which. Hours are shown to a tenth, rounded half up, on screen and in the CSV alike.
+- **Period and look-backs.** The report covers all time or a date range (both ends inclusive). Recent experience counts back from an "as of" date (the range's end, else today): 90 days is that day and the 89 before it; 12 months starts the day after the same date a year earlier. Look-backs ignore the report's period but follow its rule filter. A zero look-back is still printed.
+- **Rule filter** limits flights to chosen rules; simulator sessions are never filtered by rule.
+- **Hiding.** Sections, columns and rows are switched in the layout panel. All-zero rows and columns are dropped unless asked for. A hidden row still counts toward its section's total, which is the pilot's real total.
+- **Layouts.** Three built in: "Everything", "Airline application" (family lines, PIC turbine and multi-engine in recent experience) and "Like ForeFlight" (ICAO grouping, per-flight rounding, full-stop landings, for checking against ForeFlight's own report). The pilot's own are saved by name in the `profile` table; the layout being looked at is remembered in settings.
+- **Tapping a number** opens the logbook on just those entries, shown as a removable "Report: CRJ-700 · PIC" filter. The list is held in memory, so it is gone after a reload (agreed with the pilot).
+- **Header.** Name, certificates with ratings, medical class and date, last flight review and IPC are typed in Settings and printed at the top; nothing there is tracked.
+- **Output.** Print or PDF from the browser: a landscape print stylesheet places recent experience on top, the six small tables in one band, and the type table below, which fits one page for this logbook. CSV: one block per section with the same header lines.
+- `npm run report -- <logten|foreflight> <file> [--layout full|airline|foreflight] [--from D] [--to D]` prints the report from the command line (hours and counts only).
+
+Checked against ForeFlight's own Experience Report of 2 June 2024: with the "Like ForeFlight" layout and the period ending that day, the ForeFlight book reproduces every figure of the type table, category and class, engine type and both simulator tables. Complex (150.5 vs 152.4) and retractable (579.9 vs 567.0) differ because the built-in type list corrected ForeFlight's aircraft attributes (§7.5).
+
 ---
 
 ## 9. Export
@@ -601,7 +623,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 6 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4) and aircraft management (§4.3). Milestone 7, the experience report (§8), is next.
+Milestones 0 to 7 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4), aircraft management (§4.3) and the experience report (§8.3). Milestone 8, Drive sync and backups, is next.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

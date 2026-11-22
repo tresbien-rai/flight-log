@@ -25,3 +25,40 @@ export const COLUMN_PRESETS: Record<SourceId, Record<string, ColumnMapping>> = {
     Flag: { custom: 'flag', type: 'toggle' },
   },
 };
+
+export type CustomFieldKind = 'duration' | 'count' | 'toggle' | 'text';
+
+/** A user-defined field: what it is called and what it holds. */
+export interface CustomFieldDef {
+  /** The key in `Entry.custom`. */
+  id: string;
+  label: string;
+  /** Column heading, as the pilot's apps abbreviate it. */
+  short: string;
+  /** Durations are minutes; a toggle counts the entries where it is set. */
+  kind: CustomFieldKind;
+}
+
+/** This pilot's user-defined fields, the ones `COLUMN_PRESETS` fills in. */
+export const CUSTOM_FIELDS: readonly CustomFieldDef[] = [
+  {
+    id: 'dualGivenPPL',
+    label: 'Dual given, private pilot students',
+    short: 'DG-PPL',
+    kind: 'duration',
+  },
+  {
+    id: 'dualGivenIRA',
+    label: 'Dual given, instrument students',
+    short: 'DG-IRA',
+    kind: 'duration',
+  },
+  {
+    id: 'dualGivenCPL',
+    label: 'Dual given, commercial students',
+    short: 'DG-CPL',
+    kind: 'duration',
+  },
+  { id: 'passengerCount', label: 'Passengers', short: 'Pax', kind: 'count' },
+  { id: 'flag', label: 'Flagged', short: 'Flag', kind: 'toggle' },
+];

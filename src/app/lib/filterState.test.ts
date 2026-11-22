@@ -31,6 +31,7 @@ describe('filter state in the URL', () => {
       dateFrom: '2024-01-01',
       dateTo: '2024-12-31',
       withFindings: true,
+      fromReport: true,
       order: 'oldest',
     };
     expect(parse(serializeFilterState(state).toString())).toEqual(state);
@@ -45,6 +46,7 @@ describe('filter state in the URL', () => {
       { dateFrom: '2020-02-29' },
       { dateTo: '2020-03-01' },
       { withFindings: true },
+      { fromReport: true },
       { order: 'oldest' },
     ];
     for (const patch of cases) {
@@ -92,6 +94,7 @@ describe('filter helpers', () => {
     expect(isFiltered({ ...DEFAULT_FILTER, order: 'oldest' })).toBe(false);
     expect(isFiltered({ ...DEFAULT_FILTER, text: '  ' })).toBe(false);
     expect(isFiltered({ ...DEFAULT_FILTER, withFindings: true })).toBe(true);
+    expect(isFiltered({ ...DEFAULT_FILTER, fromReport: true })).toBe(true);
   });
 
   it('clears filters but keeps the sort order', () => {

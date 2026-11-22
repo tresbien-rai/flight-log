@@ -93,7 +93,7 @@ function BookScreen({ bookId }: { bookId: BookId }) {
 }
 
 function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) {
-  const { prefs } = useShell();
+  const { prefs, reportList } = useShell();
   const aircraftNames = useMemo(
     () =>
       new Map([
@@ -104,7 +104,17 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
   );
   const analysis = useLogbookAnalysis(logbook);
   const { index, findings } = analysis;
-  const controls = useFilterState();
+  const urlControls = useFilterState();
+  // The report's list lives in memory: after a reload, or for another book, it is not there,
+  // and the URL's `report=1` is ignored.
+  const list = reportList?.bookId === bookId ? reportList : undefined;
+  const controls = useMemo(
+    () =>
+      urlControls.filter.fromReport && !list
+        ? { ...urlControls, filter: { ...urlControls.filter, fromReport: false } }
+        : urlControls,
+    [urlControls, list],
+  );
   const { filter } = controls;
   const wide = useMediaQuery(WIDE_QUERY);
   const navigate = useNavigate();
@@ -115,8 +125,14 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
   const entryById = useMemo(() => new Map(logbook.entries.map((e) => [e.id, e])), [logbook]);
   const flagged = useMemo(() => new Set(findings.keys()), [findings]);
   const filtered = useMemo(
-    () => filterEntries(logbook.entries, toEntryFilter(filter), index, flagged),
-    [logbook, filter, index, flagged],
+    () =>
+      filterEntries(
+        logbook.entries,
+        { ...toEntryFilter(filter), entryIds: filter.fromReport ? list?.entryIds : undefined },
+        index,
+        flagged,
+      ),
+    [logbook, filter, index, flagged, list],
   );
   const sorted = useMemo(() => sortEntries(filtered, filter.order), [filtered, filter.order]);
   const items = useMemo(() => buildLedgerItems(sorted), [sorted]);
@@ -206,7 +222,12 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
 
   return (
     <div className="logbook">
-      <FilterBar controls={controls} types={index.typesInUse} aircraftNames={aircraftNames} />
+      <FilterBar
+        controls={controls}
+        types={index.typesInUse}
+        aircraftNames={aircraftNames}
+        reportLabel={list?.label}
+      />
       {analysis.airportsMissing ? (
         <p className="notice" role="status">
           The airport data could not be loaded, so checks that need airports did not run. Reload the

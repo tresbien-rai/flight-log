@@ -1,4 +1,4 @@
-import { formatFlightNumber } from '@core/importers';
+import { CUSTOM_FIELDS, formatFlightNumber } from '@core/importers';
 import type { DisplayPrefs } from '../lib/prefs';
 import { personName } from '../lib/names';
 import { useEffect, useRef, type ReactNode } from 'react';
@@ -25,12 +25,7 @@ const DURATION_LABELS: Record<DurationField, string> = {
   groundTraining: 'Ground training',
 };
 
-const CUSTOM_LABELS: Record<string, { label: string; kind: 'duration' | 'count' }> = {
-  dualGivenPPL: { label: 'Dual given, private pilot students', kind: 'duration' },
-  dualGivenIRA: { label: 'Dual given, instrument students', kind: 'duration' },
-  dualGivenCPL: { label: 'Dual given, commercial students', kind: 'duration' },
-  passengerCount: { label: 'Passengers', kind: 'count' },
-};
+const CUSTOM_LABELS = new Map(CUSTOM_FIELDS.map((f) => [f.id, f]));
 
 const RULE_NAMES: Record<Entry['rule'], string> = {
   '91': 'Part 91',
@@ -164,7 +159,7 @@ export function EntryDetail({
         : `${entry.from} local`
       : undefined;
   const customRows: RowList = Object.entries(entry.custom).map(([key, value]) => {
-    const known = CUSTOM_LABELS[key];
+    const known = CUSTOM_LABELS.get(key);
     if (known && typeof value === 'number') {
       return [
         known.label,

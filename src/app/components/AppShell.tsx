@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import type { BookId } from '@storage/index';
 import { useBooks } from '../hooks/useBook';
 import { useDisplayPrefs } from '../hooks/useDisplayPrefs';
 import { useSelectedBook } from '../hooks/useSelectedBook';
-import type { ShellContext } from '../routes/shellContext';
+import type { ReportList, ShellContext } from '../routes/shellContext';
 import { BookSwitcher } from './BookSwitcher';
 
 export function AppShell() {
@@ -22,6 +23,12 @@ export function AppShell() {
   const onAudit = pathname.startsWith('/audit');
   const onAircraft = pathname.startsWith('/aircraft');
   const onSettings = pathname.startsWith('/settings');
+  const onReport = pathname.startsWith('/report');
+  const [reportList, setReportList] = useState<ReportList>();
+  const showReportList = (list: ReportList) => {
+    setReportList(list);
+    void navigate({ pathname: '/', search: '?report=1' });
+  };
   const context: ShellContext = {
     books,
     retryBooks,
@@ -30,6 +37,8 @@ export function AppShell() {
     prefs,
     setNameOrder,
     setFlightNumberStyle,
+    reportList,
+    showReportList,
   };
 
   return (
@@ -39,9 +48,14 @@ export function AppShell() {
         <nav className="app-nav" aria-label="Main">
           <Link
             to="/"
-            aria-current={onImport || onAudit || onSettings || onAircraft ? undefined : 'page'}
+            aria-current={
+              onImport || onAudit || onSettings || onAircraft || onReport ? undefined : 'page'
+            }
           >
             Logbook
+          </Link>
+          <Link to="/report" aria-current={onReport ? 'page' : undefined}>
+            Report
           </Link>
           <Link to="/aircraft" aria-current={onAircraft ? 'page' : undefined}>
             Aircraft

@@ -72,12 +72,15 @@ export function FilterBar({
   controls,
   types,
   aircraftNames,
+  reportLabel,
 }: {
   controls: FilterControls;
   /** Types the open book uses. */
   types: readonly AircraftType[];
   /** Tail or device name by airframe or device id, for naming an aircraft filter. */
   aircraftNames?: ReadonlyMap<string, string>;
+  /** What the report list shows, when the logbook was opened from a number on the report. */
+  reportLabel?: string;
 }) {
   const { filter, draftText, setDraftText, update, clear } = controls;
   const aircraftLabel =
@@ -222,6 +225,18 @@ export function FilterBar({
             aria-label={`Showing ${aircraftLabel}; show every aircraft`}
           >
             {aircraftLabel} ×
+          </button>
+        ) : null}
+
+        {filter.fromReport ? (
+          <button
+            type="button"
+            className="btn btn-toggle"
+            aria-pressed="true"
+            onClick={() => update({ fromReport: false })}
+            aria-label={`Showing the report's ${reportLabel ?? 'entries'}; show every entry`}
+          >
+            Report: {reportLabel ?? 'entries'} ×
           </button>
         ) : null}
 

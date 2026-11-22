@@ -45,6 +45,8 @@ export interface EntryFilter {
   /** Airframe or training-device ids. */
   aircraftIds?: string[];
   seats?: Seat[];
+  /** Only these entries, e.g. the ones behind a number on the experience report. */
+  entryIds?: readonly string[];
   /** Only entries whose id is in `flagged` (e.g. entries with validation findings). */
   onlyFlagged?: boolean;
 }

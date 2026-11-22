@@ -145,6 +145,14 @@ export function createDexieStore(db: FlightLogDb = new FlightLogDb()): LogbookSt
       announce();
     },
 
+    async loadProfileDoc(doc) {
+      return (await db.profile.get(`doc:${doc}`))?.value;
+    },
+
+    async saveProfileDoc(doc, value) {
+      await db.profile.put({ key: `doc:${doc}`, value });
+    },
+
     async removeDecisions(keys) {
       if (keys.length === 0) return;
       await db.decisions.bulkDelete([...keys]);

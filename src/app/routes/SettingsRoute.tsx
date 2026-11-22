@@ -1,5 +1,122 @@
 import type { FlightNumberStyle, NameOrder } from '@core/importers';
+import { completePilotProfile, type PilotProfile } from '@core/model';
+import { useProfileDoc } from '../hooks/useProfileDoc';
 import { useShell } from './shellContext';
+
+/** Printed at the head of the experience report. Typed in, not tracked. */
+function PilotSettings() {
+  const { value: pilot, save } = useProfileDoc('pilot', completePilotProfile);
+  const set = (patch: Partial<PilotProfile>) => void save({ ...pilot, ...patch });
+  const setDate = (key: 'flightReview' | 'ipc', value: string) => {
+    const next = { ...pilot, [key]: value };
+    if (!value) delete next[key];
+    void save(next);
+  };
+  const setCertificate = (i: number, patch: Partial<PilotProfile['certificates'][number]>) =>
+    set({
+      certificates: pilot.certificates.map((c, j) => (j === i ? { ...c, ...patch } : c)),
+    });
+
+  return (
+    <fieldset className="settings-group">
+      <legend className="section-title">For the experience report</legend>
+      <p className="lede">
+        Printed at the top of the report. Nothing here is checked or tracked; type it as it should
+        appear.
+      </p>
+      <label className="field">
+        Name
+        <input
+          className="input"
+          value={pilot.name}
+          autoComplete="name"
+          onChange={(e) => set({ name: e.target.value })}
+        />
+      </label>
+      <div className="pilot-certs">
+        {pilot.certificates.map((c, i) => (
+          <div key={i} className="pilot-cert">
+            <label className="field">
+              Certificate
+              <input
+                className="input"
+                value={c.title}
+                placeholder="Commercial Pilot"
+                onChange={(e) => setCertificate(i, { title: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              Ratings
+              <input
+                className="input"
+                value={c.details}
+                placeholder="Airplane Single Engine Land"
+                onChange={(e) => setCertificate(i, { details: e.target.value })}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-link"
+              aria-label={`Remove ${c.title || 'this certificate'}`}
+              onClick={() => set({ certificates: pilot.certificates.filter((_, j) => j !== i) })}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn"
+          onClick={() => set({ certificates: [...pilot.certificates, { title: '', details: '' }] })}
+        >
+          Add a certificate
+        </button>
+      </div>
+      <div className="pilot-dates">
+        <label className="field">
+          Medical class
+          <input
+            className="input"
+            value={pilot.medical.class}
+            placeholder="First"
+            onChange={(e) => set({ medical: { ...pilot.medical, class: e.target.value } })}
+          />
+        </label>
+        <label className="field">
+          Medical date
+          <input
+            className="input"
+            type="date"
+            value={pilot.medical.date ?? ''}
+            onChange={(e) => {
+              const medical: PilotProfile['medical'] = { ...pilot.medical, date: e.target.value };
+              if (!medical.date) delete medical.date;
+              set({ medical });
+            }}
+          />
+        </label>
+        <label className="field">
+          Last flight review
+          <input
+            className="input"
+            type="date"
+            value={pilot.flightReview ?? ''}
+            onChange={(e) => setDate('flightReview', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          Last IPC
+          <input
+            className="input"
+            type="date"
+            value={pilot.ipc ?? ''}
+            onChange={(e) => setDate('ipc', e.target.value)}
+          />
+        </label>
+      </div>
+    </fieldset>
+  );
+}
 
 const STYLES: { value: FlightNumberStyle; label: string; example: string }[] = [
   { value: 'spaced', label: 'With a space', example: 'DL 3939' },
@@ -17,6 +134,7 @@ export function SettingsRoute() {
     <div className="screen">
       <div className="screen-inner">
         <h1 className="screen-title">Settings</h1>
+        <PilotSettings />
         <fieldset className="settings-group">
           <legend className="section-title">People’s names</legend>
           <p className="lede">

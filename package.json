@@ -20,6 +20,7 @@
     "audit": "tsx scripts/audit.ts",
     "build:airports": "tsx scripts/build-airports.ts",
     "validate": "tsx scripts/validate.ts",
+    "report": "tsx scripts/report.ts",
     "start": "sirv dist --host 0.0.0.0 --port ${PORT:-4173} --single"
   },
   "dependencies": {

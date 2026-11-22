@@ -16,6 +16,9 @@ Node command-line tools that run the core logic directly. Run with `npm run <nam
 - `validate` — `npm run validate -- <logten|foreflight> <file> [--out data/validate.md]`
   Converts an export to logbook entries and runs every validation rule. `--out` lists each
   finding by date, tail and route.
+- `report` — `npm run report -- <logten|foreflight> <file> [--layout full|airline|foreflight] [--from D] [--to D] [--csv data/report.csv]`
+  Prints the experience report (hours and counts by type, class, engine, rule, simulator; no
+  names). `--layout foreflight` reproduces ForeFlight's own figures for checking.
 - `build:airports` regenerates the bundled airport table from OurAirports.
 
 Real exports belong in the git-ignored `data/` directory.

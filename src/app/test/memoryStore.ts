@@ -14,6 +14,7 @@ import {
 export function createMemoryStore(): LogbookStore & { settings: Map<string, unknown> } {
   const books = new Map<BookId, { logbook: Logbook; info: BookInfo }>();
   const settings = new Map<string, unknown>();
+  const profileDocs = new Map<string, unknown>();
   const sources = new Map<SourceId, SourceFile>();
   const decisions = new Map<string, Decision>();
   let aircraftEdits: AircraftEdits = NO_EDITS;
@@ -47,6 +48,10 @@ export function createMemoryStore(): LogbookStore & { settings: Map<string, unkn
     saveAircraftEdits: async (edits) => {
       aircraftEdits = edits;
       notify();
+    },
+    loadProfileDoc: async (doc) => profileDocs.get(doc),
+    saveProfileDoc: async (doc, value) => {
+      profileDocs.set(doc, value);
     },
     putDecisions: async (list) => {
       for (const d of list) decisions.set(decisionKey(d), d);

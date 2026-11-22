@@ -160,6 +160,20 @@ describe('dexie store', () => {
     expect(await store.getSetting<number>('x')).toBe(5);
   });
 
+  it('stores profile documents apart from aircraft edits, without announcing them', async () => {
+    const { store } = freshStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    expect(await store.loadProfileDoc('pilot')).toBeUndefined();
+    await store.saveProfileDoc('pilot', { name: 'Pat Example' });
+    await store.saveProfileDoc('reportLayouts', [{ id: 'a' }]);
+    expect(await store.loadProfileDoc('pilot')).toEqual({ name: 'Pat Example' });
+    expect(await store.loadProfileDoc('reportLayouts')).toEqual([{ id: 'a' }]);
+    expect((await store.loadAircraftEdits()).types).toEqual({});
+    await new Promise((r) => setTimeout(r, 20));
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   describe('subscribe', () => {
     it('notifies asynchronously after replace and delete; settings do not notify', async () => {
       const { store } = freshStore();
