@@ -348,6 +348,8 @@ interface TrainingDevice { id: string; name: string; level: 'FFS' | 'FTD' | 'AAT
 - A fleet conversion list can be pasted or imported in bulk (tail + effective date), since a company converts many airframes.
 - Validation flags entries within a few days of a configuration change for a second look, since the effective date is the easy thing to get wrong.
 
+**Engine types.** The type stores the engine it actually has (turbofan, turbojet, turboprop, turboshaft, piston, electric), as the engine's certificate and both apps do. Reports group engines into the buckets an application asks for (`src/core/aircraft/engines.ts`): _turbojet-powered_ (turbojet and turbofan, the 14 CFR wording for pilot certification) and _turbine_ (every turbine), each labelled in the application's own wording. Decided with the pilot: storing everything as turbojet would lose information that cannot be recovered.
+
 **Screens (milestone 6), from what the pilot likes in LogTen and ForeFlight:**
 
 - Two browsable, editable lists: **Aircraft types** and **Aircraft** (airframes), plus training devices. Each row shows total time and number of flights ("1,324.2 h in 665 flights").
@@ -504,7 +506,9 @@ As built (`src/core/reconcile/rules.ts`): a merged flight is _stated_ when eithe
 
 ### 7.5 Aircraft on import
 
-Aircraft from both sources are merged into airframes by normalised tail (built: LogTen's description of an aircraft is used and ForeFlight fills in what LogTen leaves blank, so a shared tail gets LogTen's type code; the mapping onto a built-in type list is not built). Type spellings are mapped onto the built-in type list once ("CL-600 Regional Jet CRJ-700", "Regional Jet CRJ-700" → CRJ-700). Conversions are not in either export and are entered afterwards (§4.3).
+Aircraft from both sources are merged into airframes by normalised tail: LogTen's description of an aircraft is used and ForeFlight fills in what LogTen leaves blank. Type spellings are mapped onto the built-in type list (`src/core/aircraft/catalog.ts`). Conversions are not in either export and are entered afterwards (§4.3).
+
+As built: LogTen writes the model (`C-172S`, `PA-28R-201`), ForeFlight the ICAO designator plus a model text (`C172`, "172S Skyhawk"). A code that names one listed type maps to it; an ICAO designator shared by several types is resolved by the model text, and for the CRJs falls back to the original type (CRJ-700, not the converted CRJ-550). A listed type's attributes come from the list, not the source; the one per-airframe exception is TAA, which depends on the avionics fitted. Each attribute the list overrode is reported as a conversion note. On the real exports both apps now produce the same 16 types. Jets are not marked complex or high performance: 14 CFR 61.1 defines both by propeller and horsepower. An unlisted type keeps the source's code, as before.
 
 ### 7.6 Privacy of real data
 

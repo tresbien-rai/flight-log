@@ -24,6 +24,8 @@ export interface AircraftType {
   typeRating?: string;
   /** Id of the type this is a converted variant of, e.g. `CRJ-550` → `CRJ-700`. */
   variantOf?: string;
+  /** Certificated for two pilots. */
+  multiPilot?: boolean;
   complex: boolean;
   highPerformance: boolean;
   taa: boolean;
