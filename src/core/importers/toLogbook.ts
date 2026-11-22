@@ -5,6 +5,7 @@
  * always gives the same output. Every guess is reported as a ConversionNote.
  */
 
+import { catalogType, matchType, type CatalogType } from '../aircraft';
 import type { AirportLookup } from '../airports/types';
 import {
   zeroDurations,
@@ -85,8 +86,18 @@ const OVERRIDE_KEYS: readonly OverrideKey[] = [
   'pressurized',
 ];
 
+/** A listed type's id when the type list knows the aircraft, else the source's own code. */
 function typeIdOf(a: SourceAircraft): string {
-  return clean(a.typeCode) ?? 'unknown';
+  return matchType(a)?.id ?? clean(a.typeCode) ?? 'unknown';
+}
+
+/** The type as the model stores it, without the type list's matching hints. */
+function fromCatalog(t: CatalogType): AircraftType {
+  const { codes, modelPattern, isDefaultForIcao, ...type } = t;
+  void codes;
+  void modelPattern;
+  void isDefaultForIcao;
+  return { ...type };
 }
 
 function isValidDate(date: string): boolean {
@@ -130,7 +141,7 @@ function buildAircraft(
           message: `Device ${a.tail} has no level in the source; assumed AATD.`,
         });
       }
-      const rep = clean(a.typeCode);
+      const rep = matchType(a)?.id ?? clean(a.typeCode);
       if (rep !== undefined) device.represents = rep;
       devices.push(device);
       continue;
@@ -148,6 +159,25 @@ function buildAircraft(
   const types: AircraftType[] = [];
   const typeValues = new Map<string, Record<BoolKey, boolean>>();
   for (const [id, list] of byType) {
+    const listed = catalogType(id);
+    if (listed) {
+      const type = fromCatalog(listed);
+      const replaced = BOOL_KEYS.filter(
+        (key) => key !== 'taa' && list.some((a) => a[key] !== undefined && a[key] !== type[key]),
+      );
+      if (list.some((a) => a.engine !== undefined && a.engine !== type.engine)) {
+        replaced.push('engine' as never);
+      }
+      if (replaced.length > 0) {
+        notes.push({
+          code: 'type-attributes-from-list',
+          message: `Type ${id}: ${replaced.join(', ')} taken from the type list, not the source.`,
+        });
+      }
+      typeValues.set(id, type);
+      types.push(type);
+      continue;
+    }
     const first = <T>(pick: (a: SourceAircraft) => T | undefined): T | undefined => {
       for (const a of list) {
         const v = pick(a);
@@ -204,7 +234,8 @@ function buildAircraft(
     const tv = typeValues.get(typeId);
     if (tv) {
       const overrides: NonNullable<Airframe['overrides']> = {};
-      for (const key of OVERRIDE_KEYS) {
+      // A listed type's attributes are facts; only its avionics (TAA) vary by airframe.
+      for (const key of catalogType(typeId) ? (['taa'] as const) : OVERRIDE_KEYS) {
         const v = a[key];
         if (v !== undefined && v !== tv[key]) overrides[key] = v;
       }

@@ -21,7 +21,7 @@ function rec(over: Partial<SourceRecord> = {}): SourceRecord {
 }
 
 function ac(tail: string, over: Partial<SourceAircraft> = {}): SourceAircraft {
-  return { tail, typeCode: 'C172', make: 'Cessna', model: '172S', ...over };
+  return { tail, typeCode: 'ZZ01', make: 'Example Aero', model: 'Trainer', ...over };
 }
 
 function res(
@@ -59,7 +59,7 @@ describe('ids and determinism', () => {
     expect(logbook.entries.map((e) => e.id)).toEqual(['foreflight:7', 'foreflight:8']);
     expect(logbook.airframes.map((a) => a.id)).toEqual(['af:N1AB']);
     expect(logbook.devices.map((d) => d.id)).toEqual(['dev:SIM1']);
-    expect(logbook.aircraftTypes.map((t) => t.id)).toEqual(['C172']);
+    expect(logbook.aircraftTypes.map((t) => t.id)).toEqual(['ZZ01']);
     expect(logbook.entries[0]!.source).toEqual({ kind: 'import', batchId: 'foreflight' });
     expect(logbook.entries[0]!.createdAt).toBe('1970-01-01T00:00Z');
     expect(logbook.entries[0]!.updatedAt).toBe('1970-01-01T00:00Z');
@@ -103,14 +103,14 @@ describe('aircraft', () => {
       {
         id: 'af:N1AB',
         registrations: [{ value: 'N1AB' }],
-        configurations: [{ value: 'C172' }],
+        configurations: [{ value: 'ZZ01' }],
         serialNumber: '123',
       },
     ]);
     expect(logbook.aircraftTypes[0]).toMatchObject({
-      id: 'C172',
-      make: 'Cessna',
-      model: '172S',
+      id: 'ZZ01',
+      make: 'Example Aero',
+      model: 'Trainer',
       category: 'airplane',
       class: 'ASEL',
       engine: 'piston',
@@ -120,6 +120,49 @@ describe('aircraft', () => {
     });
     expect(logbook.aircraftTypes[0]!.icaoDesignator).toBeUndefined();
     expect(codes(notes)).toEqual([]);
+  });
+
+  it('takes a listed type from the type list, keeping only TAA per airframe', () => {
+    const { logbook, notes } = toLogbook(
+      res(
+        [],
+        [
+          // LogTen's model-level code and ForeFlight's ICAO code with its model text.
+          {
+            tail: 'N1',
+            typeCode: 'C-172S',
+            make: 'CESSNA AIRCRAFT COMPANY (USA)',
+            model: '172S Skyhawk',
+          },
+          { tail: 'N2', typeCode: 'C172', make: 'Cessna', model: '172S Skyhawk', taa: true },
+          // A CRJ the source says has fixed gear and a turbojet.
+          {
+            tail: 'N3',
+            typeCode: 'CRJ7',
+            model: 'CRJ700NG',
+            retractable: false,
+            engine: 'turbojet',
+          },
+          { tail: 'N4', typeCode: 'CRJ7', model: 'CL-600 Regional Jet CRJ-700' },
+        ],
+      ),
+    );
+    expect(logbook.aircraftTypes.map((t) => t.id)).toEqual(['C-172S', 'CRJ-700']);
+    expect(logbook.aircraftTypes[1]).toMatchObject({
+      icaoDesignator: 'CRJ7',
+      make: 'Bombardier',
+      engine: 'turbofan',
+      retractable: true,
+      pressurized: true,
+      typeRating: 'CL-65',
+      multiPilot: true,
+    });
+    expect(logbook.aircraftTypes[1]).not.toHaveProperty('codes');
+    expect(logbook.airframes.find((f) => f.id === 'af:N2')!.overrides).toEqual({ taa: true });
+    expect(logbook.airframes.find((f) => f.id === 'af:N3')!.overrides).toBeUndefined();
+    expect(
+      notes.filter((n) => n.code === 'type-attributes-from-list').map((n) => n.message),
+    ).toEqual(['Type CRJ-700: retractable, engine taken from the type list, not the source.']);
   });
 
   it('assumes class and engine with notes, and empty make/model', () => {
@@ -206,7 +249,7 @@ describe('aircraft', () => {
       res([], [ac('SIM1', { deviceLevel: 'FFS' }), { tail: 'SIM2', isDevice: true }, ac('N1')]),
     );
     expect(logbook.devices).toEqual([
-      { id: 'dev:SIM1', name: 'SIM1', level: 'FFS', represents: 'C172' },
+      { id: 'dev:SIM1', name: 'SIM1', level: 'FFS', represents: 'ZZ01' },
       { id: 'dev:SIM2', name: 'SIM2', level: 'AATD' },
     ]);
     expect(codes(notes).filter((c) => c.startsWith('device'))).toEqual(['device-level-assumed']);

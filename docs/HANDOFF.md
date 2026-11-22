@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5, pairing by hand and keyboard movement in the audit.
+Last updated: milestone 5 done; built-in type list (start of milestone 6).
 
 ## State
 
@@ -116,9 +116,9 @@ Core:
 - Night time is taken from the source as typed. Computing it from times and position
   (DESIGN §5) is not built, so there is no independent check on it beyond "not more than total".
 - `totalSource` is always `typed` after import, even when clock times agree with the total.
-- Aircraft types are created one per source type code (`C172`, `C-172S`). Mapping both apps'
-  spellings onto one type list (DESIGN §7.5) is not built, so the two books do not share types.
-  The merged logbook uses LogTen's type code wherever LogTen knows the tail.
+- The built-in type list (`src/core/aircraft/catalog.ts`) holds only the types this pilot has
+  flown plus the CRJ-450/550 conversions. Any other type keeps the source's code until it is
+  added to the list (or, after milestone 6, edited on the types screen).
 - People are keyed by the words of their name in any order. Different spellings of one
   person (7 people in the real exports) are still separate people and show as crew differences.
 - No export (DESIGN §9), no experience report (§8), no Drive sync (§3.3).
@@ -176,7 +176,9 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
 
 Next, in order:
 
-12. **Type mapping** onto one type list (DESIGN §7.5).
+12. **Milestone 6, aircraft management** (DESIGN §4.3): type and aircraft lists with totals
+    and links, then editing, registrations, conversions. Edits must survive a re-import, so
+    aircraft data the pilot maintains needs its own storage, not the imported books.
 13. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 
 ## Asked for, for manual entry (milestone 9)
