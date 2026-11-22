@@ -559,3 +559,68 @@ export function fixList(
   out.b.sort(byDate);
   return out;
 }
+
+// --- pairing by hand -------------------------------------------------------------------------
+
+export interface PairCandidate {
+  side: Side;
+  record: SourceRecord;
+  fingerprint: string;
+  /** Whole days between the two rows' dates. */
+  daysApart: number;
+  /** The pair this row is in now, if any; pairing it here takes it out of that pair. */
+  pairedWith?: ResolvedPair;
+}
+
+function dayNumber(date: string): number {
+  const ms = Date.parse(`${date}T00:00:00Z`);
+  return Number.isNaN(ms) ? NaN : Math.round(ms / 86_400_000);
+}
+
+/**
+ * Rows from the other app that a one-app-only entry could be paired with: every unpaired row
+ * there, and rows already in a pair within `pairedWithinDays` days (the matcher may have given
+ * them the wrong partner). Nearest date first, then the same aircraft, then file order.
+ */
+export function pairCandidates(
+  resolution: Resolution,
+  orphan: ResolvedOrphan,
+  pairedWithinDays = 1,
+): PairCandidate[] {
+  const other: Side = orphan.side === 'a' ? 'b' : 'a';
+  const day = dayNumber(orphan.record.date);
+  const apart = (r: SourceRecord) => {
+    const d = Math.abs(dayNumber(r.date) - day);
+    return Number.isNaN(d) ? Number.MAX_SAFE_INTEGER : d;
+  };
+  const out: PairCandidate[] = [];
+  for (const o of resolution.orphans) {
+    if (o.side !== other) continue;
+    out.push({
+      side: other,
+      record: o.record,
+      fingerprint: o.fingerprint,
+      daysApart: apart(o.record),
+    });
+  }
+  for (const p of resolution.pairs) {
+    const record = p[other];
+    const daysApart = apart(record);
+    if (daysApart > pairedWithinDays) continue;
+    out.push({
+      side: other,
+      record,
+      fingerprint: other === 'a' ? p.fa : p.fb,
+      daysApart,
+      pairedWith: p,
+    });
+  }
+  const sameTail = (c: PairCandidate) => (c.record.tail === orphan.record.tail ? 0 : 1);
+  return out.sort(
+    (x, y) =>
+      x.daysApart - y.daysApart ||
+      sameTail(x) - sameTail(y) ||
+      (x.pairedWith ? 1 : 0) - (y.pairedWith ? 1 : 0) ||
+      x.record.line - y.record.line,
+  );
+}

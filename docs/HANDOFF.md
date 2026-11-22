@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5, automatic rounding and flight numbers, fix list.
+Last updated: milestone 5, pairing by hand and keyboard movement in the audit.
 
 ## State
 
@@ -94,8 +94,6 @@ App:
 - In the phone-size entry sheet, Escape and the arrow keys do nothing.
 - Entry detail is read-only. There is no way to create, edit or delete an entry.
 - `main` ("My logbook") is written only by the "Build my logbook" button on the audit screen.
-- The audit screen cannot pair two one-app-only entries by hand (core supports it: a pair
-  decision with `match: 'manual'`). It has no keyboard movement through the list.
 - Books imported before milestone 5 have no stored source file. The audit needs both files
   imported again once (`loadAudit` reports which are missing).
 - Column mappings for custom fields are hard-coded in `src/core/importers/presets.ts`
@@ -159,6 +157,9 @@ Done:
    group or per flight on the audit screen.
 10. **Names**: given and family names stored separately, a Settings screen with the name
     order, and crew compared person by person.
+11. **Pairing by hand**: a one-app-only entry can be paired with any unpaired row of the other
+    app, or a paired one within a day (which frees its partner); a hand-made pair can be
+    undone. Arrow keys, Home and End move through the audit list.
 
 What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) show:
 
@@ -175,7 +176,6 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
 
 Next, in order:
 
-11. **Pairing by hand** on the audit screen, and keyboard movement through the list.
 12. **Type mapping** onto one type list (DESIGN §7.5).
 13. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 

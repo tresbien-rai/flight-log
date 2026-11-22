@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   amendPairDecision,
@@ -22,6 +29,7 @@ import {
   auditItems,
   fieldLabel,
   isOpen,
+  pairCandidates,
   proposalTitle,
   SIDE_LABEL,
   tierText,
@@ -189,6 +197,16 @@ function AuditScreen({ audit }: { audit: Audit }) {
       put([amendPairDecision(pair, { match }, now())]);
       if (match === 'rejected') close();
     },
+    pairWith: (orphan, candidate) => {
+      const [fa, fb] =
+        orphan.side === 'a'
+          ? [orphan.fingerprint, candidate.fingerprint]
+          : [candidate.fingerprint, orphan.fingerprint];
+      put([{ kind: 'pair', a: fa, b: fb, match: 'manual', fields: {}, decidedAt: now() }]);
+      // A pair's entry is named after its LogTen row.
+      open(`main:${fa}`);
+    },
+    unpair: (pair) => write(store.removeDecisions([`pair:${pair.fa}|${pair.fb}`])),
     setOrphan: (orphan, action) => {
       const key = `orphan:${orphan.side}:${orphan.fingerprint}`;
       if (action === undefined) write(store.removeDecisions([key]));
@@ -272,6 +290,38 @@ function AuditScreen({ audit }: { audit: Audit }) {
     />
   );
   const shownItems = visible.slice(0, limit);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // Arrow keys move through the list. On a wide screen the flight opens beside it as the
+  // cursor moves; on a narrow one Enter opens it, since it would cover the list.
+  const onListKeyDown = (event: ReactKeyboardEvent<HTMLUListElement>) => {
+    const rows = [
+      ...(listRef.current?.querySelectorAll<HTMLButtonElement>('button.audit-row') ?? []),
+    ];
+    if (rows.length === 0) return;
+    const at = rows.indexOf(document.activeElement as HTMLButtonElement);
+    let next: number;
+    switch (event.key) {
+      case 'ArrowDown':
+        next = at < 0 ? 0 : Math.min(rows.length - 1, at + 1);
+        break;
+      case 'ArrowUp':
+        next = at < 0 ? 0 : Math.max(0, at - 1);
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = rows.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    rows[next]!.focus();
+    const item = shownItems[next];
+    if (wide && item) open(item.id);
+  };
   const upNext = selected && !isOpen(selected) ? nextOpen(selected.id) : undefined;
 
   return (
@@ -343,12 +393,21 @@ function AuditScreen({ audit }: { audit: Audit }) {
               </button>
             </div>
           ) : null}
+          <p id="audit-list-keys" className="visually-hidden">
+            Use the up and down arrow keys to move between flights.
+          </p>
           {visible.length === 0 ? (
             <p className="audit-empty" role="status">
               {show === 'open' ? 'Nothing left to decide here.' : 'Nothing to show.'}
             </p>
           ) : (
-            <ul className="audit-list" aria-label="Flights to review">
+            <ul
+              ref={listRef}
+              className="audit-list"
+              aria-label="Flights to review"
+              aria-describedby="audit-list-keys"
+              onKeyDown={onListKeyDown}
+            >
               {shownItems.map((item) => (
                 <ItemRow
                   key={item.id}
@@ -395,6 +454,9 @@ function AuditScreen({ audit }: { audit: Audit }) {
                 sheet={!wide}
                 prefs={shell.prefs}
                 rule={selected.rule}
+                candidates={
+                  selected.orphan ? pairCandidates(audit.resolution, selected.orphan) : undefined
+                }
               />
               {upNext ? (
                 <div className="audit-next">
