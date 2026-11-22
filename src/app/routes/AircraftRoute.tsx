@@ -1,8 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { CATALOG, type AircraftEdits } from '@core/aircraft';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { AircraftType, Airframe, Logbook, TrainingDevice } from '@core/model';
 import { aircraftUsage, indexLogbook, type AircraftUsage } from '@core/query';
 import type { BookId } from '@storage/index';
+import { AirframeForm, ConversionForm, TypeForm } from '../components/AircraftForms';
+import { useAircraftEdits } from '../hooks/useAircraftEdits';
 import { useBook } from '../hooks/useBook';
 import { useMediaQuery, WIDE_QUERY } from '../hooks/useMediaQuery';
 import {
@@ -52,12 +55,15 @@ function Pane({
   sub,
   onClose,
   sheet,
+  onEdit,
   children,
 }: {
   title: string;
   sub?: string;
   onClose: () => void;
   sheet: boolean;
+  /** Shows an Edit button in the bar. */
+  onEdit?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -66,6 +72,11 @@ function Pane({
         <button type="button" className="btn" onClick={onClose}>
           {sheet ? 'Back to list' : 'Close'}
         </button>
+        {onEdit ? (
+          <button type="button" className="btn detail-bar-end" onClick={onEdit}>
+            Edit
+          </button>
+        ) : null}
       </div>
       <div className="detail-scroll">
         <div className="detail-inner">
@@ -80,10 +91,17 @@ function Pane({
   );
 }
 
+interface EditProps {
+  edits: AircraftEdits;
+  save: (next: AircraftEdits) => void;
+  typeIds: readonly string[];
+}
+
 function TypeDetail({
   type,
   logbook,
   usage,
+  editing,
   ...pane
 }: {
   type: AircraftType;
@@ -91,7 +109,35 @@ function TypeDetail({
   usage: AircraftUsage;
   onClose: () => void;
   sheet: boolean;
+  editing: EditProps;
 }) {
+  const [edit, setEdit] = useState(false);
+  const { edits, save, typeIds } = editing;
+  if (edit) {
+    return (
+      <Pane title={`Edit ${type.id}`} {...pane}>
+        <TypeForm
+          type={type}
+          typeIds={typeIds}
+          edited={edits.types[type.id] !== undefined}
+          onCancel={() => setEdit(false)}
+          onReset={() => {
+            const types = { ...edits.types };
+            delete types[type.id];
+            save({ ...edits, types });
+            setEdit(false);
+          }}
+          onSave={(changes) => {
+            save({
+              ...edits,
+              types: { ...edits.types, [type.id]: { ...edits.types[type.id], ...changes } },
+            });
+            setEdit(false);
+          }}
+        />
+      </Pane>
+    );
+  }
   const frames = byUse(
     logbook.airframes.filter((f) => f.configurations.some((c) => c.value === type.id)),
     (f) => usage.airframes.get(f.id),
@@ -99,7 +145,12 @@ function TypeDetail({
   );
   const devices = logbook.devices.filter((d) => d.represents === type.id);
   return (
-    <Pane title={type.id} sub={[type.make, type.model].filter(Boolean).join(' ')} {...pane}>
+    <Pane
+      title={type.id}
+      sub={[type.make, type.model].filter(Boolean).join(' ')}
+      onEdit={() => setEdit(true)}
+      {...pane}
+    >
       <Rows
         rows={[
           ['Time', usageText(usage.types.get(type.id))],
@@ -114,6 +165,7 @@ function TypeDetail({
             ) : undefined,
           ],
           ['Attributes', attributeText(type)],
+          ['Notes', type.notes],
         ]}
       />
       <div className="actions">
@@ -155,24 +207,54 @@ function TypeDetail({
 
 function AirframeDetail({
   frame,
+  logbook,
   usage,
+  editing,
   ...pane
 }: {
   frame: Airframe;
+  logbook: Logbook;
   usage: AircraftUsage;
   onClose: () => void;
   sheet: boolean;
+  editing: EditProps;
 }) {
+  const [edit, setEdit] = useState(false);
+  const { edits, save, typeIds } = editing;
+  if (edit) {
+    return (
+      <Pane title={`Edit ${currentTail(frame)}`} {...pane}>
+        <AirframeForm
+          frame={frame}
+          logbook={logbook}
+          typeIds={typeIds}
+          edited={edits.airframes[frame.id] !== undefined}
+          onCancel={() => setEdit(false)}
+          onReset={() => {
+            const airframes = { ...edits.airframes };
+            delete airframes[frame.id];
+            save({ ...edits, airframes });
+            setEdit(false);
+          }}
+          onSave={(edit) => {
+            save({ ...edits, airframes: { ...edits.airframes, [frame.id]: edit } });
+            setEdit(false);
+          }}
+        />
+      </Pane>
+    );
+  }
   const overrides = Object.entries(frame.overrides ?? {})
     .map(([k, v]) => `${k === 'taa' ? 'TAA' : k}: ${v ? 'yes' : 'no'}`)
     .join(' · ');
   return (
-    <Pane title={currentTail(frame)} {...pane}>
+    <Pane title={currentTail(frame)} onEdit={() => setEdit(true)} {...pane}>
       <Rows
         rows={[
           ['Time', usageText(usage.airframes.get(frame.id))],
           ['Serial number', frame.serialNumber],
           ['Differs from its type', overrides],
+          ['Notes', frame.notes],
         ]}
       />
       <div className="actions">
@@ -246,6 +328,27 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
   const tab: AircraftTab = isTab(tabPart) ? tabPart : 'types';
   const selectedId = rest.length > 0 ? decodeURIComponent(rest.join('/')) : undefined;
 
+  const { edits, save } = useAircraftEdits();
+  const [converting, setConverting] = useState(false);
+  const [failure, setFailure] = useState<string>();
+  const saveEdits = (next: AircraftEdits) => {
+    setFailure(undefined);
+    save(next).catch((error: unknown) =>
+      setFailure(error instanceof Error ? error.message : String(error)),
+    );
+  };
+  const typeIds = useMemo(
+    () =>
+      [
+        ...new Set([
+          ...logbook.aircraftTypes.map((t) => t.id),
+          ...CATALOG.map((t) => t.id),
+          ...Object.keys(edits.types),
+        ]),
+      ].sort(),
+    [logbook, edits],
+  );
+  const editing: EditProps = { edits, save: saveEdits, typeIds };
   const index = useMemo(() => indexLogbook(logbook), [logbook]);
   const usage = useMemo(() => aircraftUsage(logbook.entries, index), [logbook, index]);
   const close = () => void navigate(path(tab));
@@ -298,7 +401,22 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
 
   const pane = { onClose: close, sheet: !wide };
   let detail: React.ReactNode = null;
-  if (selectedId !== undefined) {
+  if (converting) {
+    detail = (
+      <Pane title="Record a fleet conversion" onClose={() => setConverting(false)} sheet={!wide}>
+        <ConversionForm
+          logbook={logbook}
+          typeIds={typeIds}
+          edits={edits}
+          onCancel={() => setConverting(false)}
+          onSave={(next) => {
+            saveEdits(next);
+            setConverting(false);
+          }}
+        />
+      </Pane>
+    );
+  } else if (selectedId !== undefined) {
     const type =
       tab === 'types' ? logbook.aircraftTypes.find((t) => t.id === selectedId) : undefined;
     const frame =
@@ -306,9 +424,23 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
     const device =
       tab === 'simulators' ? logbook.devices.find((d) => d.id === selectedId) : undefined;
     detail = type ? (
-      <TypeDetail type={type} logbook={logbook} usage={usage} {...pane} />
+      <TypeDetail
+        key={type.id}
+        type={type}
+        logbook={logbook}
+        usage={usage}
+        editing={editing}
+        {...pane}
+      />
     ) : frame ? (
-      <AirframeDetail frame={frame} usage={usage} {...pane} />
+      <AirframeDetail
+        key={frame.id}
+        frame={frame}
+        logbook={logbook}
+        usage={usage}
+        editing={editing}
+        {...pane}
+      />
     ) : device ? (
       <DeviceDetail device={device} usage={usage} {...pane} />
     ) : (
@@ -320,7 +452,14 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
 
   return (
     <div className="audit">
-      <div className={`audit-body${selectedId !== undefined ? ' has-selection' : ''}`}>
+      {failure ? (
+        <p className="notice" role="alert">
+          That could not be saved: {failure}
+        </p>
+      ) : null}
+      <div
+        className={`audit-body${selectedId !== undefined || converting ? ' has-selection' : ''}`}
+      >
         <div className="audit-list-col">
           <div className="audit-filters">
             <nav className="segmented" aria-label="Aircraft lists">
@@ -336,6 +475,11 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
                 </Link>
               ))}
             </nav>
+            {tab === 'aircraft' ? (
+              <button type="button" className="btn" onClick={() => setConverting(true)}>
+                Record a fleet conversion…
+              </button>
+            ) : null}
           </div>
           {rows.length === 0 ? (
             <p className="audit-empty">Nothing in the {BOOK_LABELS[bookId]} book.</p>

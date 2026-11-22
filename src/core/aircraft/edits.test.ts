@@ -1,0 +1,182 @@
+import { describe, expect, it } from 'vitest';
+import { indexLogbook } from '../query';
+import { makeAirframe, makeEntry, makeLogbook, makeType } from '../validation/testing';
+import {
+  applyAircraftEdits,
+  NO_EDITS,
+  parseConversionList,
+  periodsFromChanges,
+  withTypeFrom,
+  type AircraftEdits,
+} from './edits';
+
+const book = makeLogbook({
+  aircraftTypes: [makeType({ id: 'CRJ-700', make: 'Bombardier' }), makeType({ id: 'C-172S' })],
+  airframes: [
+    makeAirframe({
+      id: 'af:N701',
+      registrations: [{ value: 'N701' }],
+      configurations: [{ value: 'CRJ-700' }],
+    }),
+    makeAirframe({
+      id: 'af:N799',
+      registrations: [{ value: 'N799' }],
+      configurations: [{ value: 'CRJ-700' }],
+    }),
+    makeAirframe({
+      id: 'af:N172',
+      registrations: [{ value: 'N172' }],
+      configurations: [{ value: 'C-172S' }],
+    }),
+  ],
+  entries: [
+    makeEntry({ id: 'e1', date: '2025-01-01', airframeId: 'af:N701' }),
+    makeEntry({ id: 'e2', date: '2025-06-01', airframeId: 'af:N701' }),
+    makeEntry({ id: 'e3', date: '2025-07-01', airframeId: 'af:N799' }),
+  ],
+});
+const edits = (over: Partial<AircraftEdits>): AircraftEdits => ({ ...NO_EDITS, ...over });
+
+describe('applyAircraftEdits', () => {
+  it('returns the same book when there is nothing to apply', () => {
+    expect(applyAircraftEdits(book, NO_EDITS)).toBe(book);
+  });
+
+  it('changes a type’s fields, keeping the rest and its id', () => {
+    const out = applyAircraftEdits(
+      book,
+      edits({
+        types: { 'CRJ-700': { notes: 'Line aircraft', multiPilot: true, model: undefined } },
+      }),
+    );
+    const t = out.aircraftTypes.find((x) => x.id === 'CRJ-700')!;
+    expect(t).toMatchObject({
+      id: 'CRJ-700',
+      make: 'Bombardier',
+      notes: 'Line aircraft',
+      multiPilot: true,
+    });
+    expect(out.aircraftTypes.map((x) => x.id)).toEqual(['CRJ-700', 'C-172S']);
+    expect(book.aircraftTypes[0]!.notes).toBeUndefined();
+  });
+
+  it('records a conversion, creating the new type from the type list, and counts flights under it', () => {
+    const out = applyAircraftEdits(
+      book,
+      edits({
+        airframes: {
+          'af:N701': {
+            configurations: withTypeFrom(
+              book.airframes[0]!.configurations,
+              'CRJ-550',
+              '2025-03-10',
+            ),
+          },
+        },
+      }),
+    );
+    expect(out.airframes[0]!.configurations).toEqual([
+      { value: 'CRJ-700', to: '2025-03-09' },
+      { value: 'CRJ-550', from: '2025-03-10' },
+    ]);
+    expect(out.aircraftTypes.find((t) => t.id === 'CRJ-550')).toMatchObject({
+      variantOf: 'CRJ-700',
+      icaoDesignator: 'CRJ7',
+    });
+    const index = indexLogbook(out);
+    expect(out.entries.map((e) => index.typeOf(e)?.id)).toEqual(['CRJ-700', 'CRJ-550', 'CRJ-700']);
+  });
+
+  it('creates a blank type for an unlisted id', () => {
+    const out = applyAircraftEdits(book, edits({ types: { 'ZZ-1': { make: 'Example' } } }));
+    expect(out.aircraftTypes.at(-1)).toMatchObject({
+      id: 'ZZ-1',
+      make: 'Example',
+      engine: 'piston',
+    });
+  });
+
+  it('folds an airframe into another through a re-registration, moving its entries', () => {
+    const out = applyAircraftEdits(
+      book,
+      edits({
+        airframes: {
+          'af:N701': {
+            registrations: [
+              { value: 'N701', to: '2025-06-30' },
+              { value: 'N799', from: '2025-07-01' },
+            ],
+          },
+        },
+      }),
+    );
+    expect(out.airframes.map((f) => f.id)).toEqual(['af:N701', 'af:N172']);
+    expect(out.entries.map((e) => e.airframeId)).toEqual(['af:N701', 'af:N701', 'af:N701']);
+    expect(indexLogbook(out).tailOf(out.entries[2]!)).toBe('N799');
+  });
+
+  it('sets serial number, overrides and notes', () => {
+    const out = applyAircraftEdits(
+      book,
+      edits({
+        airframes: {
+          'af:N172': { serialNumber: '172S1234', overrides: { taa: true }, notes: 'G1000' },
+        },
+      }),
+    );
+    expect(out.airframes[2]).toMatchObject({
+      serialNumber: '172S1234',
+      overrides: { taa: true },
+      notes: 'G1000',
+    });
+  });
+
+  it('ignores edits for airframes the book does not have', () => {
+    const out = applyAircraftEdits(book, edits({ airframes: { 'af:NOPE': { notes: 'x' } } }));
+    expect(out.airframes).toEqual(book.airframes);
+  });
+});
+
+describe('type histories', () => {
+  it('turns changes into back-to-back periods', () => {
+    expect(
+      periodsFromChanges([
+        { value: 'B', from: '2025-03-10' },
+        { value: 'A' },
+        { value: 'C', from: '2026-01-01' },
+      ]),
+    ).toEqual([
+      { value: 'A', to: '2025-03-09' },
+      { value: 'B', from: '2025-03-10', to: '2025-12-31' },
+      { value: 'C', from: '2026-01-01' },
+    ]);
+  });
+
+  it('drops a change to the type already in force', () => {
+    expect(periodsFromChanges([{ value: 'A' }, { value: 'A', from: '2025-01-01' }])).toEqual([
+      { value: 'A' },
+    ]);
+  });
+
+  it('replaces a change on the same date', () => {
+    const once = withTypeFrom([{ value: 'A' }], 'B', '2025-03-10');
+    expect(withTypeFrom(once, 'C', '2025-03-10')).toEqual([
+      { value: 'A', to: '2025-03-09' },
+      { value: 'C', from: '2025-03-10' },
+    ]);
+  });
+});
+
+describe('parseConversionList', () => {
+  it('reads a tail and a date per line, in either order, and lists what it cannot read', () => {
+    expect(
+      parseConversionList('N701SK 2025-03-10\n2025-04-01, n702sk\n\nN703SK\nN704SK 10/03/2025'),
+    ).toEqual({
+      rows: [
+        { tail: 'N701SK', from: '2025-03-10' },
+        { tail: 'N702SK', from: '2025-04-01' },
+      ],
+      rejected: ['N703SK', 'N704SK 10/03/2025'],
+    });
+  });
+});

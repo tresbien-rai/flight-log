@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { applyAircraftEdits } from '@core/aircraft';
 import type { Logbook } from '@core/model';
 import type { BookId, BookInfo } from '@storage/index';
 import { useStore } from '../store/StoreProvider';
@@ -12,7 +13,8 @@ export type Loadable<T> =
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /**
- * Loads one book and reloads it whenever the store reports a write.
+ * Loads one book, with the pilot's aircraft edits applied, and reloads it whenever the store
+ * reports a write.
  * `bookId` undefined means "no book chosen": the result is `missing`.
  */
 export function useBook(bookId: BookId | undefined): {
@@ -27,12 +29,14 @@ export function useBook(bookId: BookId | undefined): {
     if (bookId === undefined) return;
     let cancelled = false;
     const load = () => {
-      store.loadBook(bookId).then(
-        (logbook) => {
+      Promise.all([store.loadBook(bookId), store.loadAircraftEdits()]).then(
+        ([logbook, edits]) => {
           if (cancelled) return;
           setLoaded({
             bookId,
-            state: logbook ? { status: 'ready', value: logbook } : { status: 'missing' },
+            state: logbook
+              ? { status: 'ready', value: applyAircraftEdits(logbook, edits) }
+              : { status: 'missing' },
           });
         },
         (error: unknown) => {

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { zeroDurations } from '@core/model';
@@ -127,5 +127,82 @@ describe('aircraft screen', () => {
     renderApp(await store(), '/aircraft/simulators');
     const list = await screen.findByRole('list', { name: 'Simulators' });
     expect(list).toHaveTextContent('FFS 1FFS · CRJ-7004.0 h in 1 simulator session');
+  });
+
+  it('edits a type and can undo the edit', async () => {
+    const user = userEvent.setup();
+    const s = await store();
+    renderApp(s, '/aircraft/types/C-172S');
+    const detail = await screen.findByRole('complementary', { name: 'C-172S detail' });
+    await user.click(within(detail).getByRole('button', { name: 'Edit' }));
+    const form = await screen.findByRole('form', { name: 'Edit C-172S' });
+    await user.click(within(form).getByRole('checkbox', { name: 'Technically advanced (TAA)' }));
+    await user.type(within(form).getByLabelText('Notes'), 'Club fleet');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+
+    const after = await screen.findByRole('complementary', { name: 'C-172S detail' });
+    await waitFor(() => expect(after).toHaveTextContent('NotesClub fleet'));
+    expect(after).toHaveTextContent('TAA');
+    expect(await s.loadAircraftEdits()).toEqual({
+      types: { 'C-172S': { taa: true, notes: 'Club fleet' } },
+      airframes: {},
+    });
+
+    await user.click(within(after).getByRole('button', { name: 'Edit' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo my changes' }));
+    await waitFor(async () => expect((await s.loadAircraftEdits()).types).toEqual({}));
+  });
+
+  it('records a conversion on an aircraft, saying how many flights move', async () => {
+    const user = userEvent.setup();
+    const s = await store();
+    renderApp(s, '/aircraft/aircraft/af%3AN700');
+    await user.click(
+      within(await screen.findByRole('complementary', { name: 'N700 detail' })).getByRole(
+        'button',
+        {
+          name: 'Edit',
+        },
+      ),
+    );
+    const form = await screen.findByRole('form', { name: 'Edit N700' });
+    await user.click(within(form).getByRole('button', { name: 'Converted to another type on…' }));
+    await user.type(within(form).getByLabelText('Type change 1: from'), '2025-01-02');
+    await user.selectOptions(within(form).getByLabelText('Type 1'), 'CRJ-550');
+    expect(form).toHaveTextContent('1 flight counts as CRJ-550.');
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+
+    const detail = await screen.findByRole('complementary', { name: 'N700 detail' });
+    await waitFor(() =>
+      expect(within(detail).getByRole('link', { name: 'CRJ-550' })).toBeInTheDocument(),
+    );
+    expect(detail).toHaveTextContent('From 2025-01-02');
+    // The new type comes from the type list and has the converted flight.
+    await user.click(within(detail).getByRole('link', { name: 'CRJ-550' }));
+    const type = await screen.findByRole('complementary', { name: 'CRJ-550 detail' });
+    expect(type).toHaveTextContent('1.0 h in 1 flight');
+    expect(within(type).getByRole('link', { name: 'CRJ-700' })).toBeInTheDocument();
+  });
+
+  it('records a pasted fleet conversion', async () => {
+    const user = userEvent.setup();
+    const s = await store();
+    renderApp(s, '/aircraft/aircraft');
+    await user.click(await screen.findByRole('button', { name: 'Record a fleet conversion…' }));
+    const form = await screen.findByRole('form', { name: 'Record a fleet conversion' });
+    await user.selectOptions(within(form).getByLabelText('Converted to'), 'CRJ-550');
+    await user.type(
+      within(form).getByLabelText('Aircraft and dates'),
+      'N700 2025-01-01{Enter}N999 2025-01-01',
+    );
+    expect(form).toHaveTextContent('1 aircraft found; 2 flights move to CRJ-550.');
+    expect(form).toHaveTextContent('Not used: N999 (not in this book)');
+    await user.click(within(form).getByRole('button', { name: 'Save 1' }));
+    await waitFor(async () =>
+      expect((await s.loadAircraftEdits()).airframes['af:N700']!.configurations).toEqual([
+        { value: 'CRJ-700', to: '2024-12-31' },
+        { value: 'CRJ-550', from: '2025-01-01' },
+      ]),
+    );
   });
 });

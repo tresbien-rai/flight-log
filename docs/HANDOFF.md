@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 6 under way: type list and browse-only aircraft screen.
+Last updated: milestone 6, aircraft editing.
 
 ## State
 
@@ -177,10 +177,11 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
 
 Next, in order:
 
-12. **Milestone 6, aircraft management** (DESIGN §4.3). Built: the type list and a
-    browse-only Aircraft screen with totals and links to flights. Next: editing types and
-    aircraft, registrations, conversions (with bulk entry). Edits must survive a re-import,
-    so aircraft data the pilot maintains needs its own storage, not the imported books.
+12. **Milestone 6, aircraft management** (DESIGN §4.3). Built: the type list, the Aircraft
+    screen with totals and links, and editing (types, type histories and conversions, fleet
+    conversions, registrations, serial number, TAA, notes), stored apart from the books in
+    the `profile` table and applied when a book is read. Not built: training devices are not
+    editable, an airframe cannot be added by hand, and there is no type silhouette icon.
 13. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 
 ## Asked for, for manual entry (milestone 9)
