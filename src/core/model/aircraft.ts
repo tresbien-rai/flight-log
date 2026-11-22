@@ -11,6 +11,22 @@ export type EngineType =
 
 export type DeviceLevel = 'FFS' | 'FTD' | 'AATD' | 'BATD';
 
+/**
+ * The drawing shown for a type: a side view of its general shape, not of the exact model.
+ * See `src/app/art/silhouettes.ts` for the drawings and how to add one.
+ */
+export const SILHOUETTES = [
+  'high-wing-single',
+  'low-wing-single',
+  'light-twin',
+  'turboprop',
+  'regional-jet',
+  'airliner',
+  'helicopter',
+] as const;
+
+export type Silhouette = (typeof SILHOUETTES)[number];
+
 export interface AircraftType {
   /** Our own id, e.g. `CRJ-550`. Not the ICAO designator, which variants share. */
   id: string;
@@ -26,6 +42,8 @@ export interface AircraftType {
   variantOf?: string;
   /** Certificated for two pilots. */
   multiPilot?: boolean;
+  /** Absent: worked out from class and engine (see `silhouetteOf`). */
+  silhouette?: Silhouette;
   notes?: string;
   complex: boolean;
   highPerformance: boolean;
@@ -63,6 +81,7 @@ export interface TrainingDevice {
   level: DeviceLevel;
   /** Aircraft type id the device represents. */
   represents?: string;
+  notes?: string;
 }
 
 /** The value in force on `date`, or undefined if none covers it. */

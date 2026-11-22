@@ -100,3 +100,15 @@ export function byUse<T>(
 export function deviceText(d: TrainingDevice): string {
   return d.represents ? `${d.level} · ${d.represents}` : d.level;
 }
+
+const SILHOUETTE_TEXT: Record<string, string> = {
+  'high-wing-single': 'High-wing single',
+  'low-wing-single': 'Low-wing single',
+  'light-twin': 'Light twin',
+  turboprop: 'Turboprop',
+  'regional-jet': 'Regional jet (rear engines)',
+  airliner: 'Airliner (engines under the wings)',
+  helicopter: 'Helicopter',
+};
+
+export const silhouetteText = (s: string) => SILHOUETTE_TEXT[s] ?? s;

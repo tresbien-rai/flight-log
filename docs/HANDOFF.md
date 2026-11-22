@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 6, aircraft editing.
+Last updated: end of milestone 6 (aircraft management). Next: milestone 7, the experience report.
 
 ## State
 
@@ -15,8 +15,9 @@ Last updated: milestone 6, aircraft editing.
 | 3 Validation engine         | done                         |
 | 4 App shell + local storage | done, deployed               |
 | 5 Audit UI                  | done                         |
-| 6 Aircraft management       | **in progress**              |
-| 7–10                        | not started (see DESIGN §11) |
+| 6 Aircraft management       | done                         |
+| 7 Experience report         | **next**                     |
+| 8–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
   `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). GitHub's default branch may still be the first working branch
@@ -25,21 +26,22 @@ Last updated: milestone 6, aircraft editing.
   push. `npm run build` then `npm start` (a static file server over `dist/`). Nothing on
   Railway stores logbook data; it lives in the browser's IndexedDB.
 - **Checks:** `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`,
-  `npm run build`. The GitHub Actions workflow exists but has not been observed running.
+  `npm run build`. GitHub Actions runs the same five on every push and pull request.
 
 ## Map of the code
 
 | Path                  | What it is                                                                                                                                    |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/core/model`      | Canonical types: `Entry`, `Airframe`, `AircraftType`, `Logbook`                                                                               |
+| `src/core/aircraft`   | Built-in type list and `matchType`; the pilot's aircraft edits (`applyAircraftEdits`); drawings per type (`silhouetteOf`); engine buckets     |
 | `src/core/importers`  | `importLogTen`, `importForeFlight` → `SourceRecord`s; `toLogbook` → canonical entries; `presets.ts` holds this pilot's custom-column mappings |
 | `src/core/reconcile`  | `matchRecords` (pairing two imports), `diffPair` (field-by-field comparison), `resolve` (apply decisions), `toMergedLogbook`                  |
 | `src/core/validation` | 35 rules, `validate`, per-source default rule switches                                                                                        |
-| `src/core/query`      | `indexLogbook`, `filterEntries`, `sortEntries`, `totalEntries`, `groupEntries`                                                                |
+| `src/core/query`      | `indexLogbook`, `filterEntries`, `sortEntries`, `totalEntries`, `groupEntries`, `aircraftUsage`                                               |
 | `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
-| `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers                                                                                          |
-| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions), `importFile`, `loadAudit` / `writeMainBook`, lazy airport loader             |
-| `src/app`             | React screens: shell, import, ledger, entry detail, aircraft, audit, settings                                                                 |
+| `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers; sun position (`isNight`, `isNightForLandings`)                                          |
+| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions, aircraft edits), `importFile`, `loadAudit` / `writeMainBook`, airport loader  |
+| `src/app`             | React screens: shell, import, ledger, entry detail, aircraft, audit, settings; `art/silhouettes.ts` holds the type drawings                   |
 | `scripts`             | `profile`, `audit`, `validate`, `build:airports` command-line tools                                                                           |
 | `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
 | `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
@@ -106,8 +108,6 @@ App:
 
 Core:
 
-- The audit and validation command-line reports are the only place differences are shown.
-  Decisions can be stored and applied (DESIGN §7.2) but there is no screen to make them.
 - Fingerprint stability between two exports taken at different times has not been tested:
   only one pair of exports (2026-11-17) has been seen. The pilot expects LogTen not to write
   anything that changes per export. Check it when the next exports arrive: the audit screen
@@ -118,71 +118,98 @@ Core:
   (DESIGN §5) is not built, so there is no independent check on it beyond "not more than total".
 - `totalSource` is always `typed` after import, even when clock times agree with the total.
 - The built-in type list (`src/core/aircraft/catalog.ts`) holds only the types this pilot has
-  flown plus the CRJ-450/550 conversions. Any other type keeps the source's code until it is
-  added to the list (or, after milestone 6, edited on the types screen).
+  flown, the CRJ-450/550 conversions and two simulator types. Any other type keeps the
+  source's code; the pilot can complete it on the Types screen. Simulators that ForeFlight
+  records as representing `C172` (no model) point at an unlisted `C172` type for the same
+  reason; editing the simulator fixes it.
+- Seven type drawings exist (`src/app/art/silhouettes.ts`); the pilot intends to add more
+  and to set up a workflow for drawing them. The file's header says how to add one.
 - People are keyed by the words of their name in any order. Different spellings of one
   person (7 people in the real exports) are still separate people and show as crew differences.
 - No export (DESIGN §9), no experience report (§8), no Drive sync (§3.3).
 - `npm audit` reports vulnerabilities in dev dependencies; not triaged.
 
-## Milestone 5: where it stands
+## Milestones 5 and 6: what was built
 
-Goal: resolve the differences between the two imported books in the app and produce `main`.
-DESIGN §7 is the specification; §7.2 and §7.3 describe what is built.
+**Milestone 5, the audit** (DESIGN §7; §7.2–§7.4 describe what is built):
 
-Done:
+- Decisions stored by fingerprints of the raw rows and replayed on re-import
+  (`src/core/reconcile/types.ts`, `resolve.ts`); merged logbook (`merge.ts`); glue in
+  `src/storage/audit.ts`.
+- Audit screen (`src/app/routes/AuditRoute.tsx`, `components/AuditOverview.tsx`,
+  `components/AuditDetail.tsx`, `lib/audit.ts`): open counts, totals per app and merged,
+  rules for whole groups, per-field choice, pairing confirmation and pairing by hand,
+  one-app-only entries, stale decisions, "Fix in the apps", "Build my logbook".
+- Settled without asking (pilot's choice): rounding keeps the more precise value; a flight
+  number only one app has is taken.
+- Takeoffs and landings decided together, with a suggested side (`suggest.ts`, sun position
+  in `src/core/time/sun.ts`). Operating-rule proposals (`rules.ts`). Crew compared person by
+  person; given and family names stored separately; Settings for name order and flight-number
+  style. Flight numbers stored as `DL3939`.
 
-1. **The stored shape of a decision** (`src/core/reconcile/types.ts`), a Dexie table for
-   decisions and one for the imported files' text, and the store methods.
-2. **The pure `resolve` step** (`resolve.ts`): pairs + decisions → merged rows, with what is
-   still open and which decisions went stale. `amendPairDecision` builds the decision to store
-   when the pilot changes something.
-3. **Merged aircraft list and merged logbook** (`merge.ts`), and the glue `loadAudit`,
-   `reresolve` and `writeMainBook` in `src/storage/audit.ts`.
-4. **The audit screen** (`src/app/routes/AuditRoute.tsx`, `components/AuditOverview.tsx`,
-   `components/AuditDetail.tsx`, helpers in `lib/audit.ts`): what is open, totals per app and
-   merged, rules for whole groups, a filterable list, per-field choice (either app, both, or a
-   typed value), pairing confirmation, keep / leave out for one-app-only entries, removal of
-   stale decisions, and "Build my logbook".
-5. **Settled without asking** (pilot's choice): rounding keeps the more precise value, and a
-   flight number only one app has is taken. On the real exports that is 2,590 rounding
-   differences and 735 flight numbers; with no rules applied 1,983 fields stay open.
-6. **Fix in the apps**: the rows each app needs corrected to match the pilot's decisions.
-7. **Flight numbers** stored as `DL3939`, shown with or without a space per Settings.
-8. **Takeoffs and landings** decided as one unit, with a suggested side and a "take the
-   suggested one" rule (`src/core/reconcile/suggest.ts`, sun position in
-   `src/core/time/sun.ts`). On the real exports 48 flights differ and 31 get a suggestion.
-   Decisions stored earlier under the old fields (`landings`, `counts.dayTakeoffs`,
-   `counts.nightTakeoffs`) no longer apply and those flights are asked about again.
-9. **Operating-rule proposals** (`src/core/reconcile/rules.ts`, DESIGN §7.4), confirmed by
-   group or per flight on the audit screen.
-10. **Names**: given and family names stored separately, a Settings screen with the name
-    order, and crew compared person by person.
-11. **Pairing by hand**: a one-app-only entry can be paired with any unpaired row of the other
-    app, or a paired one within a day (which frees its partner); a hand-made pair can be
-    undone. Arrow keys, Home and End move through the audit list.
+**Milestone 6, aircraft management** (DESIGN §4.3):
+
+- Built-in type list mapping both apps' spellings onto one set of types
+  (`src/core/aircraft/catalog.ts`, `match.ts`).
+- Aircraft screen (`src/app/routes/AircraftRoute.tsx`, forms in
+  `components/AircraftForms.tsx`): types, aircraft and simulators with totals, drawings,
+  links between them and to the logbook (`?type=`, `?aircraft=`).
+- Editing types, aircraft (type history and conversions, registrations, serial number, TAA,
+  notes), simulators (name, level, represented type, notes, merging two into one), fleet
+  conversions from a pasted list, and adding an aircraft by hand. Edits live in the
+  `profile` table apart from the books and are applied when a book is read (`useBook`), so
+  re-imports keep them.
+- Side-view drawings for seven general shapes plus simulators, drawn for this app
+  (`src/app/art/silhouettes.ts`); each listed type names its shape, others fall back by class
+  and engine.
 
 What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) show:
 
-- 1,770 pairs, 21 of them below an exact match; 44 one-app-only entries (43 simulator
-  sessions in ForeFlight, 1 ground session in LogTen).
-- With no decisions about 5,300 fields are open. The rounding rule and the blank-in-one-app
-  rule leave 358 fields on about 270 flights: crew 78 (roles that contradict, or a name spelt
-  two ways), route 45, landings 40, remarks 37, approaches 26, day takeoffs 24, night 21,
-  passengers 20, actual instrument 15, and a few each of the rest.
+- 1,770 pairs, 21 below an exact match; 44 one-app-only entries (43 simulator sessions in
+  ForeFlight, 1 ground session in LogTen).
+- With rounding and flight numbers settled automatically, 1,983 fields are open before any
+  rule. The blank-in-one-app rule leaves about 360, mostly crew, route, landings and remarks.
 - 1,142 flights have no operating rule in either app: 116 CRJ legs from 2 Dec 2022 to
-  15 Jul 2023 (proposed Part 121; marking starts the next day) and 1,026 piston flights
-  (proposed Part 91).
-- Parsing both files takes about 0.3 s and applying decisions about 0.1 s on a laptop.
+  15 Jul 2023 (proposed Part 121) and 1,026 piston flights (proposed Part 91).
+- Both apps produce the same 16 types. CRJ-700: about 1,310 h in 659 flights.
 
-Next, in order:
+## Milestone 7: where to start
 
-12. **Milestone 6, aircraft management** (DESIGN §4.3). Built: the type list, the Aircraft
-    screen with totals and links, and editing (types, type histories and conversions, fleet
-    conversions, registrations, serial number, TAA, notes), stored apart from the books in
-    the `profile` table and applied when a book is read. Not built: training devices are not
-    editable, an airframe cannot be added by hand, and there is no type silhouette icon.
-13. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
+Goal: the experience report of DESIGN §8, on screen first, then print/PDF and CSV.
+
+Already in place to build on:
+
+- `totalEntries`, `groupEntries` and `aircraftUsage` in `src/core/query`.
+- Engine buckets (`inEngineBucket`, "turbojet-powered" and "turbine") in
+  `src/core/aircraft/engines.ts`, as decided with the pilot: each aircraft keeps its actual
+  engine; reports group them in the application's terms.
+- `variantOf` on types, for the CRJ-550 / CRJ-450 sub-lines under their parents.
+- `multiPilot`, the attribute flags, TAA per airframe (`Airframe.overrides`), device levels.
+- Simulator time is never total time (see "Facts about the data").
+
+A suggested order:
+
+1. **Contract first** (`src/core/reports/types.ts`): a layout (sections, columns and rows
+   switched on or off, period, rounding mode, rule filter) in; tables out (section →
+   header + rows + total row, each cell a number of minutes or a count plus the entry ids
+   behind it, so "every number can be tapped").
+2. **A pure `experienceReport(logbook, index, layout)`** in core with exhaustive tests: by
+   type (with variant sub-lines and an optional family line), by category/class, by engine
+   bucket, by aircraft characteristic, simulators by device level and by represented type,
+   custom duration fields as columns. Rounding per flight versus once on the total, as a
+   layout option printed on the report. Hide all-zero rows and columns.
+3. **The screen**: one route, the book switcher picks the book, sections as tables, a layout
+   panel to switch things on and off, named layouts saved in the `profile` table. Tapping a
+   number opens the logbook filtered to those entries (the filter needs an "entry ids" option,
+   or a filter per cell).
+4. **Print / PDF** with a landscape print stylesheet, then **CSV**.
+5. Certificates, medical, flight review and IPC dates: a small profile page (DESIGN §8.1).
+
+Check the report against ForeFlight's own Experience Report for the same period, as the
+audit did with column totals.
+
+Smaller items still open from earlier milestones: parse flight numbers out of ForeFlight
+comments (they show up as longer remarks today).
 
 ## Asked for, for manual entry (milestone 9)
 

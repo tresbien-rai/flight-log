@@ -192,12 +192,19 @@ describe('writeMainBook', () => {
 describe('aircraft edits', () => {
   it('start empty, are saved whole, survive a re-import and notify subscribers', async () => {
     const store = await bothImported();
-    expect(await store.loadAircraftEdits()).toEqual({ types: {}, airframes: {} });
+    expect(await store.loadAircraftEdits()).toEqual({
+      types: {},
+      airframes: {},
+      devices: {},
+      added: {},
+    });
     const listener = vi.fn();
     const off = store.subscribe(listener);
     const edits = {
       types: { 'C-172S': { notes: 'Club aircraft' } },
       airframes: { 'af:N101AB': { serialNumber: '172S9999' } },
+      devices: {},
+      added: {},
     };
     await store.saveAircraftEdits(edits);
     await vi.waitFor(() => expect(listener).toHaveBeenCalled());

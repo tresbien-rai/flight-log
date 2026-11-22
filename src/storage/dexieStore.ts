@@ -1,6 +1,6 @@
 import type { Table } from 'dexie';
 import type { Logbook } from '@core/model';
-import { NO_EDITS, type AircraftEdits } from '@core/aircraft';
+import { completeEdits, type AircraftEdits } from '@core/aircraft';
 import { decisionKey } from '@core/reconcile';
 import { FlightLogDb, type Row } from './db';
 import { BOOK_IDS, type BookId, type LogbookStore } from './types';
@@ -137,11 +137,7 @@ export function createDexieStore(db: FlightLogDb = new FlightLogDb()): LogbookSt
 
     async loadAircraftEdits() {
       const row = await db.profile.get(AIRCRAFT_EDITS);
-      const edits = row?.value as Partial<AircraftEdits> | undefined;
-      return {
-        types: edits?.types ?? NO_EDITS.types,
-        airframes: edits?.airframes ?? NO_EDITS.airframes,
-      };
+      return completeEdits(row?.value as Partial<AircraftEdits> | undefined);
     },
 
     async saveAircraftEdits(edits) {

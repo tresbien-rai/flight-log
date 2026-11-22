@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CATALOG, type AircraftEdits } from '@core/aircraft';
+import { CATALOG, silhouetteOf, type AircraftEdits } from '@core/aircraft';
+import type { Silhouette } from '@core/model';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { AircraftType, Airframe, Logbook, TrainingDevice } from '@core/model';
 import { aircraftUsage, indexLogbook, type AircraftUsage } from '@core/query';
 import type { BookId } from '@storage/index';
-import { AirframeForm, ConversionForm, TypeForm } from '../components/AircraftForms';
+import {
+  AddAircraftForm,
+  AirframeForm,
+  ConversionForm,
+  DeviceForm,
+  TypeForm,
+} from '../components/AircraftForms';
+import { TypeIcon } from '../components/TypeIcon';
 import { useAircraftEdits } from '../hooks/useAircraftEdits';
 import { useBook } from '../hooks/useBook';
 import { useMediaQuery, WIDE_QUERY } from '../hooks/useMediaQuery';
@@ -56,10 +64,12 @@ function Pane({
   onClose,
   sheet,
   onEdit,
+  icon,
   children,
 }: {
   title: string;
   sub?: string;
+  icon?: Silhouette | 'simulator';
   onClose: () => void;
   sheet: boolean;
   /** Shows an Edit button in the bar. */
@@ -80,7 +90,8 @@ function Pane({
       </div>
       <div className="detail-scroll">
         <div className="detail-inner">
-          <header>
+          <header className="detail-header">
+            {icon ? <TypeIcon silhouette={icon} className="type-icon type-icon--large" /> : null}
             <h2 className="detail-title">{title}</h2>
             {sub ? <p className="detail-sub">{sub}</p> : null}
           </header>
@@ -148,6 +159,7 @@ function TypeDetail({
     <Pane
       title={type.id}
       sub={[type.make, type.model].filter(Boolean).join(' ')}
+      icon={silhouetteOf(type)}
       onEdit={() => setEdit(true)}
       {...pane}
     >
@@ -221,6 +233,10 @@ function AirframeDetail({
 }) {
   const [edit, setEdit] = useState(false);
   const { edits, save, typeIds } = editing;
+  const latestType = frame.configurations.at(-1)?.value;
+  const typeOfFrame = logbook.aircraftTypes.find((t) => t.id === latestType);
+  const added =
+    edits.added[frame.id] !== undefined && !logbook.entries.some((e) => e.airframeId === frame.id);
   if (edit) {
     return (
       <Pane title={`Edit ${currentTail(frame)}`} {...pane}>
@@ -248,7 +264,31 @@ function AirframeDetail({
     .map(([k, v]) => `${k === 'taa' ? 'TAA' : k}: ${v ? 'yes' : 'no'}`)
     .join(' · ');
   return (
-    <Pane title={currentTail(frame)} onEdit={() => setEdit(true)} {...pane}>
+    <Pane
+      title={currentTail(frame)}
+      icon={typeOfFrame ? silhouetteOf(typeOfFrame) : undefined}
+      onEdit={() => setEdit(true)}
+      {...pane}
+    >
+      {added ? (
+        <p className="detail-note">
+          You added this aircraft.{' '}
+          <button
+            type="button"
+            className="btn btn-link"
+            onClick={() => {
+              const next = { ...edits.added };
+              delete next[frame.id];
+              const airframes = { ...edits.airframes };
+              delete airframes[frame.id];
+              save({ ...edits, added: next, airframes });
+              pane.onClose();
+            }}
+          >
+            Remove it
+          </button>
+        </p>
+      ) : null}
       <Rows
         rows={[
           ['Time', usageText(usage.airframes.get(frame.id))],
@@ -290,19 +330,62 @@ function AirframeDetail({
 
 function DeviceDetail({
   device,
+  logbook,
   usage,
+  editing,
   ...pane
 }: {
   device: TrainingDevice;
+  logbook: Logbook;
   usage: AircraftUsage;
   onClose: () => void;
   sheet: boolean;
+  editing: EditProps;
 }) {
+  const [edit, setEdit] = useState(false);
+  const { edits, save, typeIds } = editing;
+  if (edit) {
+    return (
+      <Pane title={`Edit ${device.name}`} {...pane}>
+        <DeviceForm
+          device={device}
+          devices={logbook.devices}
+          typeIds={typeIds}
+          edited={edits.devices[device.id] !== undefined}
+          onCancel={() => setEdit(false)}
+          onReset={() => {
+            const devices = { ...edits.devices };
+            delete devices[device.id];
+            save({ ...edits, devices });
+            setEdit(false);
+          }}
+          onSave={(change) => {
+            save({
+              ...edits,
+              devices: {
+                ...edits.devices,
+                [device.id]: { ...edits.devices[device.id], ...change },
+              },
+            });
+            if (change.mergedInto) pane.onClose();
+            else setEdit(false);
+          }}
+        />
+      </Pane>
+    );
+  }
   return (
-    <Pane title={device.name} sub={`${device.level} training device`} {...pane}>
+    <Pane
+      title={device.name}
+      sub={`${device.level} training device`}
+      icon="simulator"
+      onEdit={() => setEdit(true)}
+      {...pane}
+    >
       <Rows
         rows={[
           ['Time', usageText(usage.devices.get(device.id))],
+          ['Notes', device.notes],
           [
             'Represents',
             device.represents ? (
@@ -330,6 +413,7 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
 
   const { edits, save } = useAircraftEdits();
   const [converting, setConverting] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [failure, setFailure] = useState<string>();
   const saveEdits = (next: AircraftEdits) => {
     setFailure(undefined);
@@ -364,6 +448,11 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
   }, [selectedId, tab, navigate]);
 
   const rows = useMemo(() => {
+    const typeById = new Map(logbook.aircraftTypes.map((t) => [t.id, t]));
+    const iconOfFrame = (f: (typeof logbook.airframes)[number]) => {
+      const t = typeById.get(f.configurations.at(-1)?.value ?? '');
+      return t ? silhouetteOf(t) : undefined;
+    };
     if (tab === 'types') {
       return byUse(
         logbook.aircraftTypes,
@@ -374,6 +463,7 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
         name: t.id,
         detail: [t.make, t.model].filter(Boolean).join(' '),
         aside: t.icaoDesignator ?? '',
+        icon: silhouetteOf(t) as Silhouette | 'simulator' | undefined,
         use: usageText(usage.types.get(t.id)),
       }));
     }
@@ -383,6 +473,7 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
         name: currentTail(f),
         detail: f.configurations.map((c) => c.value).join(' → '),
         aside: '',
+        icon: iconOfFrame(f),
         use: usageText(usage.airframes.get(f.id)),
       }));
     }
@@ -395,13 +486,29 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
       name: d.name,
       detail: deviceText(d),
       aside: '',
+      icon: 'simulator' as const,
       use: usageText(usage.devices.get(d.id)),
     }));
   }, [tab, logbook, usage]);
 
   const pane = { onClose: close, sheet: !wide };
   let detail: React.ReactNode = null;
-  if (converting) {
+  if (adding) {
+    detail = (
+      <Pane title="Add an aircraft" onClose={() => setAdding(false)} sheet={!wide}>
+        <AddAircraftForm
+          logbook={logbook}
+          typeIds={typeIds}
+          onCancel={() => setAdding(false)}
+          onSave={(frame) => {
+            saveEdits({ ...edits, added: { ...edits.added, [frame.id]: frame } });
+            setAdding(false);
+            void navigate(path('aircraft', frame.id));
+          }}
+        />
+      </Pane>
+    );
+  } else if (converting) {
     detail = (
       <Pane title="Record a fleet conversion" onClose={() => setConverting(false)} sheet={!wide}>
         <ConversionForm
@@ -442,7 +549,14 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
         {...pane}
       />
     ) : device ? (
-      <DeviceDetail device={device} usage={usage} {...pane} />
+      <DeviceDetail
+        key={device.id}
+        device={device}
+        logbook={logbook}
+        usage={usage}
+        editing={editing}
+        {...pane}
+      />
     ) : (
       <Pane title="Not found" {...pane}>
         <p>This is not in the {BOOK_LABELS[bookId]} book.</p>
@@ -458,7 +572,7 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
         </p>
       ) : null}
       <div
-        className={`audit-body${selectedId !== undefined || converting ? ' has-selection' : ''}`}
+        className={`audit-body${selectedId !== undefined || converting || adding ? ' has-selection' : ''}`}
       >
         <div className="audit-list-col">
           <div className="audit-filters">
@@ -476,9 +590,28 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
               ))}
             </nav>
             {tab === 'aircraft' ? (
-              <button type="button" className="btn" onClick={() => setConverting(true)}>
-                Record a fleet conversion…
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setConverting(false);
+                    setAdding(true);
+                  }}
+                >
+                  Add an aircraft…
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setAdding(false);
+                    setConverting(true);
+                  }}
+                >
+                  Record a fleet conversion…
+                </button>
+              </>
             ) : null}
           </div>
           {rows.length === 0 ? (
@@ -493,6 +626,9 @@ function AircraftScreen({ logbook, bookId }: { logbook: Logbook; bookId: BookId 
                     aria-current={r.id === selectedId ? 'true' : undefined}
                   >
                     <span className="aircraft-row-main">
+                      <span className="aircraft-row-icon">
+                        {r.icon ? <TypeIcon silhouette={r.icon} /> : null}
+                      </span>
                       <span className="aircraft-row-name">{r.name}</span>
                       <span className="aircraft-row-detail">{r.detail}</span>
                       <span className="aircraft-row-aside">{r.aside}</span>

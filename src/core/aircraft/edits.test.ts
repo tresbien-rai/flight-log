@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { indexLogbook } from '../query';
 import { makeAirframe, makeEntry, makeLogbook, makeType } from '../validation/testing';
+import { CATALOG } from './catalog';
 import {
   applyAircraftEdits,
+  completeEdits,
+  newAirframe,
   NO_EDITS,
   parseConversionList,
   periodsFromChanges,
   withTypeFrom,
   type AircraftEdits,
 } from './edits';
+import { silhouetteOf } from './silhouettes';
 
 const book = makeLogbook({
   aircraftTypes: [makeType({ id: 'CRJ-700', make: 'Bombardier' }), makeType({ id: 'C-172S' })],
@@ -178,5 +182,124 @@ describe('parseConversionList', () => {
       ],
       rejected: ['N703SK', 'N704SK 10/03/2025'],
     });
+  });
+});
+
+describe('simulators and added aircraft', () => {
+  const withDevices = makeLogbook({
+    ...book,
+    devices: [
+      { id: 'dev:C172-AATD', name: 'C172-AATD', level: 'AATD', represents: 'C-172S' },
+      { id: 'dev:REDBIRD', name: 'REDBIRD', level: 'AATD' },
+    ],
+    entries: [
+      ...book.entries,
+      makeEntry({ id: 's1', kind: 'simulator', airframeId: undefined, deviceId: 'dev:C172-AATD' }),
+      makeEntry({ id: 's2', kind: 'simulator', airframeId: undefined, deviceId: 'dev:REDBIRD' }),
+    ],
+  });
+
+  it('edits a simulator and creates the type it now represents', () => {
+    const out = applyAircraftEdits(
+      withDevices,
+      edits({
+        devices: { 'dev:REDBIRD': { name: 'Redbird SD', level: 'BATD', represents: 'CRJ-200' } },
+      }),
+    );
+    expect(out.devices[1]).toEqual({
+      id: 'dev:REDBIRD',
+      name: 'Redbird SD',
+      level: 'BATD',
+      represents: 'CRJ-200',
+    });
+    expect(out.aircraftTypes.some((t) => t.id === 'CRJ-200')).toBe(true);
+  });
+
+  it('merges one simulator into another, moving its sessions', () => {
+    const out = applyAircraftEdits(
+      withDevices,
+      edits({
+        devices: { 'dev:C172-AATD': { mergedInto: 'dev:REDBIRD', notes: 'ignored once merged' } },
+      }),
+    );
+    expect(out.devices.map((d) => d.id)).toEqual(['dev:REDBIRD']);
+    expect(out.entries.filter((e) => e.kind === 'simulator').map((e) => e.deviceId)).toEqual([
+      'dev:REDBIRD',
+      'dev:REDBIRD',
+    ]);
+    // A merge into a device that is itself merged away, or into nothing, is ignored.
+    const loop = applyAircraftEdits(
+      withDevices,
+      edits({
+        devices: {
+          'dev:C172-AATD': { mergedInto: 'dev:REDBIRD' },
+          'dev:REDBIRD': { mergedInto: 'dev:C172-AATD' },
+        },
+      }),
+    );
+    expect(loop.devices).toHaveLength(2);
+  });
+
+  it('adds an aircraft by hand, and folds it into an imported one with the same tail', () => {
+    const added = edits({
+      added: { 'af:N550': newAirframe(' n550 ', 'CRJ-550', { notes: 'New' }) },
+    });
+    const out = applyAircraftEdits(book, added);
+    expect(out.airframes.at(-1)).toEqual({
+      id: 'af:N550',
+      registrations: [{ value: 'N550' }],
+      configurations: [{ value: 'CRJ-550' }],
+      notes: 'New',
+    });
+    expect(out.aircraftTypes.some((t) => t.id === 'CRJ-550')).toBe(true);
+
+    const later = makeLogbook({
+      ...book,
+      airframes: [
+        ...book.airframes,
+        makeAirframe({
+          id: 'af:N550',
+          registrations: [{ value: 'N550' }],
+          configurations: [{ value: 'CRJ-700' }],
+        }),
+      ],
+    });
+    const folded = applyAircraftEdits(later, added);
+    expect(folded.airframes.filter((f) => f.id === 'af:N550')).toEqual([
+      {
+        id: 'af:N550',
+        registrations: [{ value: 'N550' }],
+        configurations: [{ value: 'CRJ-550' }],
+        notes: 'New',
+      },
+    ]);
+  });
+
+  it('fills in parts an older stored copy lacks', () => {
+    expect(completeEdits({ types: { X: { make: 'Y' } } })).toEqual({
+      types: { X: { make: 'Y' } },
+      airframes: {},
+      devices: {},
+      added: {},
+    });
+    expect(completeEdits(undefined)).toEqual(NO_EDITS);
+  });
+});
+
+describe('silhouetteOf', () => {
+  it('uses the type’s own drawing, else works one out from class and engine', () => {
+    expect(silhouetteOf(makeType({ silhouette: 'high-wing-single' }))).toBe('high-wing-single');
+    expect(silhouetteOf(makeType({ class: 'helicopter' }))).toBe('helicopter');
+    expect(silhouetteOf(makeType({ class: 'AMEL', engine: 'turbofan', multiPilot: true }))).toBe(
+      'airliner',
+    );
+    expect(silhouetteOf(makeType({ class: 'AMEL', engine: 'turbofan' }))).toBe('regional-jet');
+    expect(silhouetteOf(makeType({ class: 'AMEL', engine: 'turboprop' }))).toBe('turboprop');
+    expect(silhouetteOf(makeType({ class: 'AMEL', engine: 'piston' }))).toBe('light-twin');
+    expect(silhouetteOf(makeType({ class: 'ASEL', engine: 'piston' }))).toBe('low-wing-single');
+  });
+
+  it('is set for every listed type', () => {
+    expect(CATALOG.filter((t) => !t.silhouette).map((t) => t.id)).toEqual([]);
   });
 });
