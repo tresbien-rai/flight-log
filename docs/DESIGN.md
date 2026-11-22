@@ -359,6 +359,8 @@ interface TrainingDevice { id: string; name: string; level: 'FFS' | 'FTD' | 'AAT
 - No photos. Later, possibly a simple silhouette icon per type, as flight trackers show.
 - No favourite or default flags: defaults for new entries come from the career / employer timeline (§5).
 
+As built so far: an **Aircraft** screen (`src/app/routes/AircraftRoute.tsx`) for the book being shown, with three lists (types, aircraft, simulators) sorted by time, each with a detail pane: a type's attributes, its aircraft and simulators; an aircraft's type and registrations over time, serial number and differences from its type; a simulator's level and the type it represents. "Show its flights" opens the logbook filtered by type, or by aircraft (`?aircraft=` in the URL, shown as a removable filter). Editing is not built yet.
+
 ### 4.4 People, operators, airports
 
 - **Flight numbers** are stored in one form, designator then number with no space (`DL3939`, `SKW5123`, `9E5123`), and shown with or without a space as Settings says (default `DL 3939`). Search finds either form.

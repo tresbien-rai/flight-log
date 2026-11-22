@@ -94,6 +94,14 @@ function BookScreen({ bookId }: { bookId: BookId }) {
 
 function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) {
   const { prefs } = useShell();
+  const aircraftNames = useMemo(
+    () =>
+      new Map([
+        ...logbook.airframes.map((f) => [f.id, f.registrations.at(-1)?.value ?? f.id] as const),
+        ...logbook.devices.map((d) => [d.id, d.name] as const),
+      ]),
+    [logbook],
+  );
   const analysis = useLogbookAnalysis(logbook);
   const { index, findings } = analysis;
   const controls = useFilterState();
@@ -198,7 +206,7 @@ function LogbookView({ logbook, bookId }: { logbook: Logbook; bookId: BookId }) 
 
   return (
     <div className="logbook">
-      <FilterBar controls={controls} types={index.typesInUse} />
+      <FilterBar controls={controls} types={index.typesInUse} aircraftNames={aircraftNames} />
       {analysis.airportsMissing ? (
         <p className="notice" role="status">
           The airport data could not be loaded, so checks that need airports did not run. Reload the

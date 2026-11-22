@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 5 done; built-in type list (start of milestone 6).
+Last updated: milestone 6 under way: type list and browse-only aircraft screen.
 
 ## State
 
@@ -14,8 +14,9 @@ Last updated: milestone 5 done; built-in type list (start of milestone 6).
 | 2 Matching + diff           | done                         |
 | 3 Validation engine         | done                         |
 | 4 App shell + local storage | done, deployed               |
-| 5 Audit UI                  | **usable**, gaps below       |
-| 6–10                        | not started (see DESIGN §11) |
+| 5 Audit UI                  | done                         |
+| 6 Aircraft management       | **in progress**              |
+| 7–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
   `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). GitHub's default branch may still be the first working branch
@@ -38,7 +39,7 @@ Last updated: milestone 5 done; built-in type list (start of milestone 6).
 | `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
 | `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers                                                                                          |
 | `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions), `importFile`, `loadAudit` / `writeMainBook`, lazy airport loader             |
-| `src/app`             | React screens: shell, import, ledger, entry detail, audit, settings                                                                           |
+| `src/app`             | React screens: shell, import, ledger, entry detail, aircraft, audit, settings                                                                 |
 | `scripts`             | `profile`, `audit`, `validate`, `build:airports` command-line tools                                                                           |
 | `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
 | `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
@@ -176,9 +177,10 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
 
 Next, in order:
 
-12. **Milestone 6, aircraft management** (DESIGN §4.3): type and aircraft lists with totals
-    and links, then editing, registrations, conversions. Edits must survive a re-import, so
-    aircraft data the pilot maintains needs its own storage, not the imported books.
+12. **Milestone 6, aircraft management** (DESIGN §4.3). Built: the type list and a
+    browse-only Aircraft screen with totals and links to flights. Next: editing types and
+    aircraft, registrations, conversions (with bulk entry). Edits must survive a re-import,
+    so aircraft data the pilot maintains needs its own storage, not the imported books.
 13. Parse flight numbers out of ForeFlight comments (they show up as longer remarks today).
 
 ## Asked for, for manual entry (milestone 9)

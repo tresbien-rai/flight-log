@@ -42,6 +42,8 @@ export interface EntryFilter {
   rules?: OperatingRule[];
   kinds?: EntryKind[];
   typeIds?: string[];
+  /** Airframe or training-device ids. */
+  aircraftIds?: string[];
   seats?: Seat[];
   /** Only entries whose id is in `flagged` (e.g. entries with validation findings). */
   onlyFlagged?: boolean;
@@ -62,3 +64,24 @@ export interface Totals {
 }
 
 export type SortOrder = 'newest' | 'oldest';
+
+/** How much one type, airframe or device has been used. */
+export interface Usage {
+  /** Flights (entries of kind `flight`). */
+  flights: number;
+  /** Flight time of those flights, minutes. */
+  minutes: number;
+  /** Simulator sessions and their length, for devices and the types they represent. */
+  sessions: number;
+  sessionMinutes: number;
+  /** First and last entry date. */
+  first?: string;
+  last?: string;
+}
+
+export interface AircraftUsage {
+  /** By aircraft type id, as in force on each entry's date. */
+  types: Map<string, Usage>;
+  airframes: Map<string, Usage>;
+  devices: Map<string, Usage>;
+}

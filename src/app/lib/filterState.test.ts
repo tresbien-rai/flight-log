@@ -27,6 +27,7 @@ describe('filter state in the URL', () => {
       rules: ['91', '121', 'other'],
       kinds: ['flight', 'simulator', 'ground'],
       typeIds: ['C172', 'CRJ-700'],
+      aircraftIds: ['af:N1', 'dev:SIM'],
       dateFrom: '2024-01-01',
       dateTo: '2024-12-31',
       withFindings: true,
