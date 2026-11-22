@@ -15,6 +15,7 @@ import './styles/ledger.css';
 import './styles/detail.css';
 import './styles/import.css';
 import './styles/audit.css';
+import './styles/report.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');

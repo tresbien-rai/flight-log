@@ -11,6 +11,10 @@ import type { AircraftEdits } from '@core/aircraft';
 import type { Decision } from '@core/reconcile';
 
 export const BOOK_IDS = ['main', 'logten', 'foreflight'] as const;
+
+/** Documents of the pilot's own that belong to no book: saved report layouts, the pilot profile. */
+export const PROFILE_DOCS = ['reportLayouts', 'pilot'] as const;
+export type ProfileDoc = (typeof PROFILE_DOCS)[number];
 export type BookId = (typeof BOOK_IDS)[number];
 
 /** What is known about how a book got here. */
@@ -63,6 +67,13 @@ export interface LogbookStore {
   /** The pilot's corrections to aircraft and types; applied to every book when it is read. */
   loadAircraftEdits(): Promise<AircraftEdits>;
   saveAircraftEdits(edits: AircraftEdits): Promise<void>;
+
+  /**
+   * One of the pilot's own documents, as stored (callers check its shape), or undefined. Saving
+   * one is not announced to subscribers: no book depends on it.
+   */
+  loadProfileDoc(doc: ProfileDoc): Promise<unknown>;
+  saveProfileDoc(doc: ProfileDoc, value: unknown): Promise<void>;
 
   /** Removes decisions by `decisionKey`. Unknown keys are ignored. */
   removeDecisions(keys: readonly string[]): Promise<void>;

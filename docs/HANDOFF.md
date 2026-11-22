@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: end of milestone 6 (aircraft management). Next: milestone 7, the experience report.
+Last updated: end of milestone 7 (experience report). Next: milestone 8, Drive sync and backups.
 
 ## State
 
@@ -16,8 +16,9 @@ Last updated: end of milestone 6 (aircraft management). Next: milestone 7, the e
 | 4 App shell + local storage | done, deployed               |
 | 5 Audit UI                  | done                         |
 | 6 Aircraft management       | done                         |
-| 7 Experience report         | **next**                     |
-| 8–10                        | not started (see DESIGN §11) |
+| 7 Experience report         | done                         |
+| 8 Drive sync + backups      | **next**                     |
+| 9–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
   `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). GitHub's default branch may still be the first working branch
@@ -37,12 +38,13 @@ Last updated: end of milestone 6 (aircraft management). Next: milestone 7, the e
 | `src/core/importers`  | `importLogTen`, `importForeFlight` → `SourceRecord`s; `toLogbook` → canonical entries; `presets.ts` holds this pilot's custom-column mappings |
 | `src/core/reconcile`  | `matchRecords` (pairing two imports), `diffPair` (field-by-field comparison), `resolve` (apply decisions), `toMergedLogbook`                  |
 | `src/core/validation` | 35 rules, `validate`, per-source default rule switches                                                                                        |
+| `src/core/reports`    | `experienceReport` (layout in, tables out), built-in layouts, look-back dates, `reportToCsv`                                                  |
 | `src/core/query`      | `indexLogbook`, `filterEntries`, `sortEntries`, `totalEntries`, `groupEntries`, `aircraftUsage`                                               |
 | `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
 | `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers; sun position (`isNight`, `isNightForLandings`)                                          |
-| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions, aircraft edits), `importFile`, `loadAudit` / `writeMainBook`, airport loader  |
-| `src/app`             | React screens: shell, import, ledger, entry detail, aircraft, audit, settings; `art/silhouettes.ts` holds the type drawings                   |
-| `scripts`             | `profile`, `audit`, `validate`, `build:airports` command-line tools                                                                           |
+| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions, aircraft edits, profile documents), `importFile`, `loadAudit`, airport loader |
+| `src/app`             | React screens: shell, import, ledger, entry detail, report, aircraft, audit, settings; `art/silhouettes.ts` holds the type drawings           |
+| `scripts`             | `profile`, `audit`, `validate`, `report`, `build:airports` command-line tools                                                                 |
 | `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
 | `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
 
@@ -103,8 +105,8 @@ App:
   for this one pilot. They need to become a setting before anyone else can use the app.
 - The airport table is one 3 MB chunk (1 MB compressed). Dropping names or the smallest
   airports would shrink it considerably.
-- Lint reports two warnings (one is the list-virtualisation library being incompatible with
-  the React compiler; the other has not been looked at).
+- Lint reports one warning: the list-virtualisation library is incompatible with the React
+  compiler.
 
 Core:
 
@@ -126,7 +128,10 @@ Core:
   and to set up a workflow for drawing them. The file's header says how to add one.
 - People are keyed by the words of their name in any order. Different spellings of one
   person (7 people in the real exports) are still separate people and show as crew differences.
-- No export (DESIGN §9), no experience report (§8), no Drive sync (§3.3).
+- No export (DESIGN §9), no Drive sync (§3.3).
+- Flight numbers are not parsed out of ForeFlight comments; they show up as longer remarks.
+- Custom field definitions (`CUSTOM_FIELDS`, beside the column mappings in
+  `src/core/importers/presets.ts`) are this pilot's, hard-coded like the mappings.
 - `npm audit` reports vulnerabilities in dev dependencies; not triaged.
 
 ## Milestones 5 and 6: what was built
@@ -173,43 +178,46 @@ What the real exports (2026-11-17: 1,771 LogTen rows, 1,813 ForeFlight rows) sho
   15 Jul 2023 (proposed Part 121) and 1,026 piston flights (proposed Part 91).
 - Both apps produce the same 16 types. CRJ-700: about 1,310 h in 659 flights.
 
-## Milestone 7: where to start
+## Milestone 7: what was built
 
-Goal: the experience report of DESIGN §8, on screen first, then print/PDF and CSV.
+DESIGN §8.3 is the full description. In short:
 
-Already in place to build on:
+- `experienceReport` in `src/core/reports` (contract in `types.ts`): recent experience
+  (look-backs from an "as of" date), characteristics, category and class, engine, operating
+  rule, by type (variant sub-lines, optional family line, or grouped by ICAO designator or
+  type rating), simulators by level and by represented type; custom fields as columns.
+  Rounding once or per flight. Every cell carries the entry ids behind it.
+- Report screen (`src/app/routes/ReportRoute.tsx`, `components/ReportSheet.tsx`,
+  `components/ReportLayoutPanel.tsx`, `styles/report.css`): three built-in layouts, saved
+  layouts (profile table, `reportLayouts`), a layout panel for every switch, print or PDF on
+  one landscape page, CSV. Tapping a number opens the logbook with a "Report: …" filter
+  (`?report=1`; the list itself is in memory in the shell).
+- Pilot details for the report header in Settings (profile table, `pilot`;
+  `src/core/model/pilot.ts`).
+- `npm run report` prints the report for an export.
+- Checked against ForeFlight's own report of 2 June 2024 with the "Like ForeFlight" layout:
+  every figure of the type, class, engine and simulator tables matches. Complex and
+  retractable differ because the type list corrected ForeFlight's aircraft attributes.
 
-- `totalEntries`, `groupEntries` and `aircraftUsage` in `src/core/query`.
-- Engine buckets (`inEngineBucket`, "turbojet-powered" and "turbine") in
-  `src/core/aircraft/engines.ts`, as decided with the pilot: each aircraft keeps its actual
-  engine; reports group them in the application's terms.
-- `variantOf` on types, for the CRJ-550 / CRJ-450 sub-lines under their parents.
-- `multiPilot`, the attribute flags, TAA per airframe (`Airframe.overrides`), device levels.
-- Simulator time is never total time (see "Facts about the data").
+Left for later: a user-defined filter for the report (the pilot mentioned LogTen's; not
+needed yet), certificates as structured data rather than text.
+
+## Milestone 8: where to start
+
+Goal: data survives a lost iPad (DESIGN §3.3). The pilot does not plan to rely on the app
+for audit, transfer or reports until milestone 9 is done, so there is no rush to ship this
+before manual entry; it may be worth asking whether to take milestone 9 first.
 
 A suggested order:
 
-1. **Contract first** (`src/core/reports/types.ts`): a layout (sections, columns and rows
-   switched on or off, period, rounding mode, rule filter) in; tables out (section →
-   header + rows + total row, each cell a number of minutes or a count plus the entry ids
-   behind it, so "every number can be tapped").
-2. **A pure `experienceReport(logbook, index, layout)`** in core with exhaustive tests: by
-   type (with variant sub-lines and an optional family line), by category/class, by engine
-   bucket, by aircraft characteristic, simulators by device level and by represented type,
-   custom duration fields as columns. Rounding per flight versus once on the total, as a
-   layout option printed on the report. Hide all-zero rows and columns.
-3. **The screen**: one route, the book switcher picks the book, sections as tables, a layout
-   panel to switch things on and off, named layouts saved in the `profile` table. Tapping a
-   number opens the logbook filtered to those entries (the filter needs an "entry ids" option,
-   or a filter per cell).
-4. **Print / PDF** with a landscape print stylesheet, then **CSV**.
-5. Certificates, medical, flight review and IPC dates: a small profile page (DESIGN §8.1).
-
-Check the report against ForeFlight's own Experience Report for the same period, as the
-audit did with column totals.
-
-Smaller items still open from earlier milestones: parse flight numbers out of ForeFlight
-comments (they show up as longer remarks today).
+1. **Contract first:** the file shape (`logbook.json`: every book, decisions, aircraft edits,
+   profile documents, settings worth keeping, schema version) and pure `toBackup` /
+   `fromBackup` in core with round-trip tests.
+2. **Export and restore a backup file by hand** (download and pick a file), which needs no
+   Google account and is useful on its own.
+3. **Google sign-in and Drive** with the `drive.file` scope; the visible "Flight Log"
+   folder; dated backups before every import or bulk change.
+4. **Merging two devices** by record `updatedAt` with tombstones, and Drive's version check.
 
 ## Asked for, for manual entry (milestone 9)
 

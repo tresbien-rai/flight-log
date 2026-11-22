@@ -19,6 +19,11 @@ export interface FilterState {
   dateFrom: string;
   dateTo: string;
   withFindings: boolean;
+  /**
+   * Show only the entries behind a number tapped on the experience report. The list itself is
+   * held in memory by the shell, so it does not survive a reload.
+   */
+  fromReport: boolean;
   order: SortOrder;
 }
 
@@ -34,6 +39,7 @@ export const DEFAULT_FILTER: FilterState = {
   dateFrom: '',
   dateTo: '',
   withFindings: false,
+  fromReport: false,
   order: 'newest',
 };
 
@@ -58,6 +64,7 @@ export function parseFilterState(params: URLSearchParams): FilterState {
     dateFrom: date('from'),
     dateTo: date('to'),
     withFindings: params.get('findings') === '1',
+    fromReport: params.get('report') === '1',
     order: params.get('order') === 'oldest' ? 'oldest' : 'newest',
   };
 }
@@ -73,11 +80,12 @@ export function serializeFilterState(state: FilterState): URLSearchParams {
   if (state.dateFrom !== '') params.set('from', state.dateFrom);
   if (state.dateTo !== '') params.set('to', state.dateTo);
   if (state.withFindings) params.set('findings', '1');
+  if (state.fromReport) params.set('report', '1');
   if (state.order === 'oldest') params.set('order', 'oldest');
   return params;
 }
 
-/** How many separate filters are on (text, rule, kind, type, aircraft, dates, findings). */
+/** How many separate filters are on (text, rule, kind, type, aircraft, dates, findings, report). */
 export function countActiveFilters(state: FilterState): number {
   return [
     state.text.trim() !== '',
@@ -87,6 +95,7 @@ export function countActiveFilters(state: FilterState): number {
     state.aircraftIds.length > 0,
     state.dateFrom !== '' || state.dateTo !== '',
     state.withFindings,
+    state.fromReport,
   ].filter(Boolean).length;
 }
 
