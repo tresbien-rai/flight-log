@@ -1,6 +1,6 @@
 # Flight Log — Design Document
 
-Status: **draft 2**, incorporating the pilot’s answers to the first round of open questions. Milestones 0–7 are built; sections marked "as built" describe what exists, the rest is the plan.
+Status: **draft 2**, incorporating the pilot’s answers to the first round of open questions. Milestones 0–7 and the first half of milestone 8 (the backup file) are built; sections marked "as built" describe what exists, the rest is the plan.
 
 ## 1. What this is
 
@@ -181,6 +181,14 @@ This matters for three reasons. The logic is the valuable part and must be exhau
 - **Merging two devices:** every record has an `updatedAt` and deletions leave a tombstone. On sync, the app downloads the remote file, merges record by record (newest edit wins per record), and uploads using Drive's version check so a concurrent upload is detected and retried instead of overwritten. For one pilot on one or two devices this is enough; it is deliberately not a general collaborative-editing system.
 - **Schema version** is stored in the file. Migrations are pure functions in core, tested against saved samples of every earlier version.
 - **Export is always available** without sign-in: full JSON, plus CSV in ForeFlight's import format (§9).
+
+**As built (milestone 8, first part): the backup file.** Decided with the pilot:
+
+- **The backup is the small one.** It holds what cannot be rebuilt: the two export files as imported, every audit decision, the aircraft edits, the profile documents (report layouts, pilot details), the merged logbook (`main`), and the two settings that are not one device's display choices (name order, flight-number style). The two imported books are left out and rebuilt on restore by importing the stored files again, the same code path as the Import screen. On exports the size of the real ones that rebuild takes well under a second, and the audit after a restore is identical because decisions are keyed by fingerprints of the raw rows, which are in the backup. This also keeps the file at about half the size of a full copy.
+- **File shape** (`src/core/backup/types.ts`): one JSON document, `format: "flight-log-backup"`, a `version` (now 1) and `createdAt`. Sources and decisions are written in a fixed order so the same data gives the same file. `parseBackup` refuses, with a reason, anything that is not JSON, not one of ours, from a newer version, or missing a part; it never half-reads. Migrations are pure steps in `src/core/backup/migrate.ts`, and `fixtures/backup/` keeps a synthetic sample of every version, read by the tests.
+- **Restore replaces, it does not merge.** Everything is prepared first and written in one transaction (`LogbookStore.replaceAll`), so a failure leaves the device as it was. The confirmation lists what the backup holds and what on the device is deleted, and offers to download the device's present contents first. An export file that can no longer be read into a book is still restored and reported. Display settings of the device (selected book, working report layout) are left alone. Merging is left to the two-device step.
+- **On screen:** Settings → Backup: download, share (where the device's share sheet takes files, as on an iPad), restore from a file, when the last backup was made on this device, and whether the browser has promised to keep the data (`navigator.storage.persist`).
+- **Order of the rest:** Drive sign-in is tried on the real iPad before sync is built on it; record-by-record merge of two devices waits until after manual entry (milestone 9), since nothing before then is typed on two devices. The Drive file will be this same backup shape.
 
 ### 3.4 Hosting
 
@@ -595,7 +603,7 @@ Checked against ForeFlight's own Experience Report of 2 June 2024: with the "Lik
 
 - **ForeFlight CSV** in its import-template layout, so ForeFlight's logbook can be refreshed from this one while it remains the EFB.
 - **LogTen tab-delimited**, while LogTen is still in use.
-- **Plain CSV and JSON** of everything.
+- **Plain CSV and JSON** of everything. The JSON is the backup file (§3.3), built in milestone 8.
 - **Printable logbook pages** (later).
 
 Export adapters are the importers' mirror images and are tested by round trip: export → import → identical entries.
@@ -623,7 +631,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 7 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4), aircraft management (§4.3) and the experience report (§8.3). Milestone 8, Drive sync and backups, is next.
+Milestones 0 to 7 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4), aircraft management (§4.3) and the experience report (§8.3). Milestone 8 is under way: the backup file and restore are built (§3.3); Drive sign-in and sync are next, and two-device merge follows milestone 9.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

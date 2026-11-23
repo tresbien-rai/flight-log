@@ -61,6 +61,21 @@ export function createMemoryStore(): LogbookStore & { settings: Map<string, unkn
       for (const key of keys) decisions.delete(key);
       notify();
     },
+    replaceAll: async (snapshot) => {
+      books.clear();
+      for (const { book, logbook, info } of snapshot.books) {
+        books.set(book, { logbook, info: { ...info, book, entryCount: logbook.entries.length } });
+      }
+      sources.clear();
+      for (const file of snapshot.sources) sources.set(file.source, file);
+      decisions.clear();
+      for (const d of snapshot.decisions) decisions.set(decisionKey(d), d);
+      aircraftEdits = snapshot.aircraftEdits;
+      profileDocs.clear();
+      for (const [doc, value] of Object.entries(snapshot.documents)) profileDocs.set(doc, value);
+      for (const [key, value] of Object.entries(snapshot.settings)) settings.set(key, value);
+      notify();
+    },
     getSetting: async <T>(key: string) => settings.get(key) as T | undefined,
     setSetting: async (key, value) => {
       settings.set(key, value);

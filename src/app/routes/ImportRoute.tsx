@@ -4,6 +4,7 @@ import type { ConversionNote, ImportIssue } from '@core/importers';
 import { detectSource, importFile, loadAirports, type BookInfo, type BookId } from '@storage/index';
 import { IssueSummary } from '../components/IssueSummary';
 import { BOOK_LABELS } from '../lib/books';
+import { readFileText } from '../lib/files';
 import { formatImportedAt, plural } from '../lib/format';
 import { useStore } from '../store/StoreProvider';
 import { useShell } from './shellContext';
@@ -29,16 +30,6 @@ type Phase =
 
 const EXPORT_ADVICE =
   'In LogTen Pro, export the logbook as tab-delimited text. In ForeFlight, export the logbook as CSV. Then choose that file.';
-
-function readFileText(file: File): Promise<string> {
-  if (typeof file.text === 'function') return file.text();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(reader.error ?? new Error('The file could not be read.'));
-    reader.readAsText(file);
-  });
-}
 
 /** Lets the browser paint a "working" state before a long synchronous parse. */
 const nextFrame = () => new Promise<void>((resolve) => setTimeout(resolve, 30));

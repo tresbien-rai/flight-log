@@ -6,6 +6,7 @@ import {
   toLogbook,
   type SourceId,
 } from '@core/importers';
+import type { Logbook } from '@core/model';
 import type { BookId, BookInfo, LogbookStore } from './types';
 
 export type ImportOutcome =
@@ -30,6 +31,42 @@ export function detectSource(text: string): SourceId | undefined {
   }
 }
 
+/** A stored export converted to its book, as the Import screen does it. */
+export interface ConvertedSource {
+  source: SourceId;
+  logbook: Logbook;
+  info: Omit<BookInfo, 'book' | 'entryCount'>;
+}
+
+/**
+ * Parses an export of a known source and converts it to a book stamped `now`. Pure apart from
+ * `deps`; throws when the file cannot be read as that source.
+ */
+export function convertSource(
+  source: SourceId,
+  file: { name: string; text: string },
+  deps: { airports?: AirportLookup; now: () => string },
+): ConvertedSource {
+  const importer = source === 'logten' ? importLogTen : importForeFlight;
+  const result = importer(file.text, { columns: COLUMN_PRESETS[source] });
+  const converted = toLogbook(result, { airports: deps.airports });
+  const now = deps.now();
+  return {
+    source,
+    logbook: {
+      ...converted.logbook,
+      entries: converted.logbook.entries.map((e) => ({ ...e, createdAt: now, updatedAt: now })),
+    },
+    info: {
+      source,
+      fileName: file.name,
+      updatedAt: now,
+      issues: result.issues,
+      notes: converted.notes,
+    },
+  };
+}
+
 export async function importFile(
   store: LogbookStore,
   file: { name: string; text: string },
@@ -44,24 +81,9 @@ export async function importFile(
     };
   }
 
-  let info: Omit<BookInfo, 'book' | 'entryCount'>;
-  let logbook;
+  let converted: ConvertedSource;
   try {
-    const importer = source === 'logten' ? importLogTen : importForeFlight;
-    const result = importer(file.text, { columns: COLUMN_PRESETS[source] });
-    const converted = toLogbook(result, { airports: deps.airports });
-    const now = deps.now();
-    logbook = {
-      ...converted.logbook,
-      entries: converted.logbook.entries.map((e) => ({ ...e, createdAt: now, updatedAt: now })),
-    };
-    info = {
-      source,
-      fileName: file.name,
-      updatedAt: now,
-      issues: result.issues,
-      notes: converted.notes,
-    };
+    converted = convertSource(source, file, deps);
   } catch (error) {
     return {
       ok: false,
@@ -69,6 +91,7 @@ export async function importFile(
       message: error instanceof Error ? error.message : String(error),
     };
   }
+  const { logbook, info } = converted;
 
   // The file first: a book without its file cannot be audited, a file without its book is
   // harmless and is replaced by the next import.
