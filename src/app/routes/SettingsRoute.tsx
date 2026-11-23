@@ -1,5 +1,8 @@
 import type { FlightNumberStyle, NameOrder } from '@core/importers';
+import { useState } from 'react';
+import type { Backup } from '@core/backup';
 import { completePilotProfile, type PilotProfile } from '@core/model';
+import { BackupSettings } from '../components/BackupSettings';
 import { useProfileDoc } from '../hooks/useProfileDoc';
 import { useShell } from './shellContext';
 
@@ -130,11 +133,20 @@ const ORDERS: { value: NameOrder; label: string; example: string }[] = [
 
 export function SettingsRoute() {
   const { prefs, setNameOrder, setFlightNumberStyle } = useShell();
+  /** Counts restores, so the pilot details are read again after one. */
+  const [restores, setRestores] = useState(0);
+  const onRestored = (backup: Backup) => {
+    const order = backup.settings['app.nameOrder'];
+    const style = backup.settings['app.flightNumberStyle'];
+    if (order === 'family-first' || order === 'given-first') setNameOrder(order);
+    if (style === 'spaced' || style === 'joined') setFlightNumberStyle(style);
+    setRestores((n) => n + 1);
+  };
   return (
     <div className="screen">
       <div className="screen-inner">
         <h1 className="screen-title">Settings</h1>
-        <PilotSettings />
+        <PilotSettings key={restores} />
         <fieldset className="settings-group">
           <legend className="section-title">People’s names</legend>
           <p className="lede">
@@ -177,6 +189,7 @@ export function SettingsRoute() {
             ))}
           </div>
         </fieldset>
+        <BackupSettings onRestored={onRestored} />
       </div>
     </div>
   );

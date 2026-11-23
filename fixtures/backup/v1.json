@@ -1,0 +1,438 @@
+{
+  "format": "flight-log-backup",
+  "version": 1,
+  "createdAt": "2026-11-22T09:00:00Z",
+  "sources": [
+    {
+      "source": "logten",
+      "fileName": "logten.txt",
+      "text": "flight_flightDate\tflight_from\tflight_to\tflight_actualDepartureTime\tflight_actualArrivalTime\tflight_totalTime\tflight_pic\tflight_sic\tflight_night\tflight_ground\tflight_dayTakeoffs\tflight_dayLandings\tflight_remarks\taircraft_aircraftID\taircraftType_type\taircraftType_make\taircraftType_model\taircraftType_selectedEngineType\taircraftType_selectedCategory\taircraftType_selectedAircraftClass\n2024-03-01\tKAAA\tKBBB\t\t\t1.28\t1.28\t\t\t\t1\t1\tRounding only.\tN101AB\tC-172S\tCessna\t172S Skyhawk\tReciprocating\tAirplane\tSingle-Engine Land\n2024-03-02\tKBBB\tKAAA\t\t\t1.50\t1.50\t\t0.80\t\t1\t1\tNight differs.\tN101AB\tC-172S\tCessna\t172S Skyhawk\tReciprocating\tAirplane\tSingle-Engine Land\n2024-03-04\tKDDD\tKEEE\t13:40\t15:41\t2.02\t\t2.02\t\t\t\t\tTail differs.\tN404GH\tCRJ-700\tCanadair\tCL-600 Regional Jet CRJ-700\tTurbofan\tAirplane\tMulti-Engine Land\n2024-03-05\tKAAA\tKAAA\t\t\t1.00\t1.00\t\t\t\t1\t1\tIdentical.\tN101AB\tC-172S\tCessna\t172S Skyhawk\tReciprocating\tAirplane\tSingle-Engine Land\n2024-03-12\t\t\t\t\t\t\t\t\t1.50\t\t\tGround school.\t\t\t\t\t\t\t\n",
+      "importedAt": "2026-11-20T09:00:00Z"
+    },
+    {
+      "source": "foreflight",
+      "fileName": "foreflight.csv",
+      "text": "ForeFlight Logbook Import,This row is required for importing into ForeFlight. Do not delete or modify.,,,,,,,,,,,,\r\n,,,,,,,,,,,,,\r\nAircraft Table,,,,,,,,,,,,,\r\nAircraftID,TypeCode,Year,Make,Model,GearType,EngineType,equipType (FAA),aircraftClass (FAA),,,,,\r\nN101AB,C172,2004,Cessna,172S Skyhawk,fixed_tricycle,Piston,aircraft,airplane_single_engine_land,,,,,\r\nN414GH,CRJ7,,Canadair,CL-600 Regional Jet CRJ-700,retractable_tricycle,Turbofan,aircraft,airplane_multi_engine_land,,,,,\r\nSIM-AATD-1,C172,,,,,,aatd,airplane_single_engine_land,,,,,\r\n,,,,,,,,,,,,,\r\nFlights Table,,,,,,,,,,,,,\r\nDate,AircraftID,From,To,TimeOut,TimeIn,TotalTime,PIC,SIC,Night,SimulatedFlight,PilotComments,DayTakeoffs,DayLandingsFullStop\r\n2024-03-01,N101AB,KAAA,KBBB,,,1.3,1.3,,,,\"\"\"Rounding only.\"\"\",1,1\r\n2024-03-02,N101AB,KBBB,KAAA,,,1.5,1.5,,0.3,,\"\"\"Night differs.\"\"\",1,1\r\n2024-03-04,N414GH,KDDD,KEEE,13:40,15:41,2.0,,2.0,,,\"\"\"Tail differs.\"\"\",,\r\n2024-03-05,N101AB,KAAA,KAAA,,,1.0,1.0,,,,\"\"\"Identical.\"\"\",1,1\r\n2024-03-10,SIM-AATD-1,,,,,,,,,1.5,\"\"\"Procedures trainer.\"\"\",,\r\n",
+      "importedAt": "2026-11-20T09:00:00Z"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "bulk",
+      "pattern": "real",
+      "field": "tail",
+      "choice": "a",
+      "decidedAt": "2026-11-20T09:00:00Z"
+    },
+    {
+      "kind": "bulk",
+      "pattern": "rounding",
+      "choice": "more-precise",
+      "decidedAt": "2026-11-20T09:00:00Z"
+    }
+  ],
+  "aircraftEdits": {
+    "types": {
+      "C172": {
+        "notes": "Club trainer"
+      }
+    },
+    "airframes": {
+      "af:N404GH": {
+        "notes": "Club aircraft"
+      }
+    },
+    "devices": {},
+    "added": {}
+  },
+  "documents": {
+    "reportLayouts": [],
+    "pilot": {
+      "name": "Pat Example",
+      "certificates": [
+        {
+          "title": "Commercial Pilot",
+          "details": "Airplane Single Engine Land"
+        }
+      ],
+      "medical": {
+        "class": "First",
+        "date": "2026-05-01"
+      }
+    }
+  },
+  "settings": {
+    "app.nameOrder": "given-first",
+    "app.flightNumberStyle": "joined"
+  },
+  "main": {
+    "logbook": {
+      "entries": [
+        {
+          "id": "main:0devpkduknn02kzsne8x5s",
+          "kind": "flight",
+          "date": "2024-03-01",
+          "totalSource": "typed",
+          "rule": "91",
+          "from": "KAAA",
+          "to": "KBBB",
+          "airframeId": "af:N101AB",
+          "seat": "PIC",
+          "durations": {
+            "total": 77,
+            "pic": 77,
+            "sic": 0,
+            "solo": 0,
+            "night": 0,
+            "crossCountry": 0,
+            "crossCountry50": 0,
+            "actualInstrument": 0,
+            "simulatedInstrument": 0,
+            "dualReceived": 0,
+            "dualGiven": 0,
+            "simulator": 0,
+            "groundTraining": 0
+          },
+          "dayTakeoffs": 1,
+          "nightTakeoffs": 0,
+          "landings": {
+            "dayFullStop": 1,
+            "nightFullStop": 0,
+            "dayTouchAndGo": 0,
+            "nightTouchAndGo": 0
+          },
+          "approaches": [],
+          "holds": 0,
+          "goArounds": 0,
+          "crew": [],
+          "custom": {},
+          "remarks": "Rounding only.",
+          "source": {
+            "kind": "import",
+            "batchId": "merge"
+          },
+          "acknowledged": [],
+          "createdAt": "2026-11-21T09:00:00Z",
+          "updatedAt": "2026-11-21T09:00:00Z"
+        },
+        {
+          "id": "main:0uh6vbhv5s22frbkmzrv8k",
+          "kind": "flight",
+          "date": "2024-03-02",
+          "totalSource": "typed",
+          "rule": "91",
+          "from": "KBBB",
+          "to": "KAAA",
+          "airframeId": "af:N101AB",
+          "seat": "PIC",
+          "durations": {
+            "total": 90,
+            "pic": 90,
+            "sic": 0,
+            "solo": 0,
+            "night": 48,
+            "crossCountry": 0,
+            "crossCountry50": 0,
+            "actualInstrument": 0,
+            "simulatedInstrument": 0,
+            "dualReceived": 0,
+            "dualGiven": 0,
+            "simulator": 0,
+            "groundTraining": 0
+          },
+          "dayTakeoffs": 1,
+          "nightTakeoffs": 0,
+          "landings": {
+            "dayFullStop": 1,
+            "nightFullStop": 0,
+            "dayTouchAndGo": 0,
+            "nightTouchAndGo": 0
+          },
+          "approaches": [],
+          "holds": 0,
+          "goArounds": 0,
+          "crew": [],
+          "custom": {},
+          "remarks": "Night differs.",
+          "source": {
+            "kind": "import",
+            "batchId": "merge"
+          },
+          "acknowledged": [],
+          "createdAt": "2026-11-21T09:00:00Z",
+          "updatedAt": "2026-11-21T09:00:00Z"
+        },
+        {
+          "id": "main:0mhyajlsja10pe8xbpcbmv",
+          "kind": "flight",
+          "date": "2024-03-04",
+          "out": "2024-03-04T13:40Z",
+          "in": "2024-03-04T15:41Z",
+          "totalSource": "typed",
+          "rule": "91",
+          "from": "KDDD",
+          "to": "KEEE",
+          "airframeId": "af:N404GH",
+          "seat": "SIC",
+          "durations": {
+            "total": 121,
+            "pic": 0,
+            "sic": 121,
+            "solo": 0,
+            "night": 0,
+            "crossCountry": 0,
+            "crossCountry50": 0,
+            "actualInstrument": 0,
+            "simulatedInstrument": 0,
+            "dualReceived": 0,
+            "dualGiven": 0,
+            "simulator": 0,
+            "groundTraining": 0
+          },
+          "dayTakeoffs": 0,
+          "nightTakeoffs": 0,
+          "landings": {
+            "dayFullStop": 0,
+            "nightFullStop": 0,
+            "dayTouchAndGo": 0,
+            "nightTouchAndGo": 0
+          },
+          "approaches": [],
+          "holds": 0,
+          "goArounds": 0,
+          "crew": [],
+          "custom": {},
+          "remarks": "Tail differs.",
+          "source": {
+            "kind": "import",
+            "batchId": "merge"
+          },
+          "acknowledged": [],
+          "createdAt": "2026-11-21T09:00:00Z",
+          "updatedAt": "2026-11-21T09:00:00Z"
+        },
+        {
+          "id": "main:02zctqurusi0pempy69i72",
+          "kind": "flight",
+          "date": "2024-03-05",
+          "totalSource": "typed",
+          "rule": "91",
+          "from": "KAAA",
+          "to": "KAAA",
+          "airframeId": "af:N101AB",
+          "seat": "PIC",
+          "durations": {
+            "total": 60,
+            "pic": 60,
+            "sic": 0,
+            "solo": 0,
+            "night": 0,
+            "crossCountry": 0,
+            "crossCountry50": 0,
+            "actualInstrument": 0,
+            "simulatedInstrument": 0,
+            "dualReceived": 0,
+            "dualGiven": 0,
+            "simulator": 0,
+            "groundTraining": 0
+          },
+          "dayTakeoffs": 1,
+          "nightTakeoffs": 0,
+          "landings": {
+            "dayFullStop": 1,
+            "nightFullStop": 0,
+            "dayTouchAndGo": 0,
+            "nightTouchAndGo": 0
+          },
+          "approaches": [],
+          "holds": 0,
+          "goArounds": 0,
+          "crew": [],
+          "custom": {},
+          "remarks": "Identical.",
+          "source": {
+            "kind": "import",
+            "batchId": "merge"
+          },
+          "acknowledged": [],
+          "createdAt": "2026-11-21T09:00:00Z",
+          "updatedAt": "2026-11-21T09:00:00Z"
+        },
+        {
+          "id": "main:1mkdil6bbf60pmof0rp73f",
+          "kind": "simulator",
+          "date": "2024-03-10",
+          "totalSource": "typed",
+          "rule": "91",
+          "deviceId": "dev:SIM-AATD-1",
+          "durations": {
+            "total": 0,
+            "pic": 0,
+            "sic": 0,
+            "solo": 0,
+            "night": 0,
+            "crossCountry": 0,
+            "crossCountry50": 0,
+            "actualInstrument": 0,
+            "simulatedInstrument": 0,
+            "dualReceived": 0,
+            "dualGiven": 0,
+            "simulator": 90,
+            "groundTraining": 0
+          },
+          "dayTakeoffs": 0,
+          "nightTakeoffs": 0,
+          "landings": {
+            "dayFullStop": 0,
+            "nightFullStop": 0,
+            "dayTouchAndGo": 0,
+            "nightTouchAndGo": 0
+          },
+          "approaches": [],
+          "holds": 0,
+          "goArounds": 0,
+          "crew": [],
+          "custom": {},
+          "remarks": "Procedures trainer.",
+          "source": {
+            "kind": "import",
+            "batchId": "merge"
+          },
+          "acknowledged": [],
+          "createdAt": "2026-11-21T09:00:00Z",
+          "updatedAt": "2026-11-21T09:00:00Z"
+        },
+        {
+          "id": "main:1zlkwsexgtm180ecsd4dff",
+          "kind": "ground",
+          "date": "2024-03-12",
+          "totalSource": "typed",
+          "rule": "91",
+          "durations": {
+            "total": 0,
+            "pic": 0,
+            "sic": 0,
+            "solo": 0,
+            "night": 0,
+            "crossCountry": 0,
+            "crossCountry50": 0,
+            "actualInstrument": 0,
+            "simulatedInstrument": 0,
+            "dualReceived": 0,
+            "dualGiven": 0,
+            "simulator": 0,
+            "groundTraining": 90
+          },
+          "dayTakeoffs": 0,
+          "nightTakeoffs": 0,
+          "landings": {
+            "dayFullStop": 0,
+            "nightFullStop": 0,
+            "dayTouchAndGo": 0,
+            "nightTouchAndGo": 0
+          },
+          "approaches": [],
+          "holds": 0,
+          "goArounds": 0,
+          "crew": [],
+          "custom": {},
+          "remarks": "Ground school.",
+          "source": {
+            "kind": "import",
+            "batchId": "merge"
+          },
+          "acknowledged": [],
+          "createdAt": "2026-11-21T09:00:00Z",
+          "updatedAt": "2026-11-21T09:00:00Z"
+        }
+      ],
+      "airframes": [
+        {
+          "id": "af:N101AB",
+          "registrations": [
+            {
+              "value": "N101AB"
+            }
+          ],
+          "configurations": [
+            {
+              "value": "C-172S"
+            }
+          ]
+        },
+        {
+          "id": "af:N404GH",
+          "registrations": [
+            {
+              "value": "N404GH"
+            }
+          ],
+          "configurations": [
+            {
+              "value": "CRJ-700"
+            }
+          ]
+        }
+      ],
+      "aircraftTypes": [
+        {
+          "id": "C-172S",
+          "icaoDesignator": "C172",
+          "make": "Cessna",
+          "model": "172S Skyhawk",
+          "silhouette": "high-wing-single",
+          "category": "airplane",
+          "class": "ASEL",
+          "engine": "piston",
+          "complex": false,
+          "highPerformance": false,
+          "taa": false,
+          "pressurized": false,
+          "retractable": false,
+          "tailwheel": false
+        },
+        {
+          "id": "CRJ-700",
+          "icaoDesignator": "CRJ7",
+          "make": "Bombardier",
+          "model": "CRJ700",
+          "silhouette": "regional-jet",
+          "category": "airplane",
+          "class": "AMEL",
+          "engine": "turbofan",
+          "multiPilot": true,
+          "complex": false,
+          "highPerformance": false,
+          "taa": false,
+          "pressurized": true,
+          "retractable": true,
+          "tailwheel": false,
+          "typeRating": "CL-65"
+        }
+      ],
+      "devices": [
+        {
+          "id": "dev:SIM-AATD-1",
+          "name": "SIM-AATD-1",
+          "level": "AATD",
+          "represents": "C172"
+        }
+      ],
+      "people": []
+    },
+    "updatedAt": "2026-11-21T09:00:00Z",
+    "issues": [],
+    "notes": [
+      {
+        "code": "no-timezone",
+        "message": "No time zone for KDDD; clock times assumed to fall on the logged date in UTC.",
+        "line": 4,
+        "entryId": "main:0mhyajlsja10pe8xbpcbmv"
+      },
+      {
+        "code": "rule-assumed",
+        "message": "6 entries had no operating rule in the source; defaulted to Part 91."
+      }
+    ]
+  }
+}

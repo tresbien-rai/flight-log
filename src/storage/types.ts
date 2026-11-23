@@ -42,6 +42,17 @@ export interface SourceFile {
   importedAt: string;
 }
 
+/** Everything a restore puts on the device, written in one step. */
+export interface StoreSnapshot {
+  books: { book: BookId; logbook: Logbook; info: Omit<BookInfo, 'book' | 'entryCount'> }[];
+  sources: SourceFile[];
+  decisions: Decision[];
+  aircraftEdits: AircraftEdits;
+  documents: Partial<Record<ProfileDoc, unknown>>;
+  /** Written over the settings with the same keys; every other setting is left alone. */
+  settings: Record<string, unknown>;
+}
+
 export interface LogbookStore {
   /** Books present on this device, in BOOK_IDS order. */
   listBooks(): Promise<BookInfo[]>;
@@ -77,6 +88,13 @@ export interface LogbookStore {
 
   /** Removes decisions by `decisionKey`. Unknown keys are ignored. */
   removeDecisions(keys: readonly string[]): Promise<void>;
+
+  /**
+   * Replaces every book, source file, decision, aircraft edit and profile document with the
+   * snapshot's, all or nothing. Anything not in the snapshot is gone afterwards, except
+   * settings the snapshot does not name. Used by restore (see `backup.ts`).
+   */
+  replaceAll(snapshot: StoreSnapshot): Promise<void>;
 
   getSetting<T>(key: string): Promise<T | undefined>;
   setSetting<T>(key: string, value: T): Promise<void>;

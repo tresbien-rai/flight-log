@@ -3,7 +3,7 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: end of milestone 7 (experience report). Next: milestone 8, Drive sync and backups.
+Last updated: milestone 8, first part (backup file and restore). Next: Drive sign-in trial on the iPad, then Drive sync.
 
 ## State
 
@@ -17,7 +17,7 @@ Last updated: end of milestone 7 (experience report). Next: milestone 8, Drive s
 | 5 Audit UI                  | done                         |
 | 6 Aircraft management       | done                         |
 | 7 Experience report         | done                         |
-| 8 Drive sync + backups      | **next**                     |
+| 8 Drive sync + backups      | backup file done; Drive next |
 | 9–10                        | not started (see DESIGN §11) |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
@@ -33,22 +33,23 @@ Last updated: end of milestone 7 (experience report). Next: milestone 8, Drive s
 
 ## Map of the code
 
-| Path                  | What it is                                                                                                                                    |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/core/model`      | Canonical types: `Entry`, `Airframe`, `AircraftType`, `Logbook`                                                                               |
-| `src/core/aircraft`   | Built-in type list and `matchType`; the pilot's aircraft edits (`applyAircraftEdits`); drawings per type (`silhouetteOf`); engine buckets     |
-| `src/core/importers`  | `importLogTen`, `importForeFlight` → `SourceRecord`s; `toLogbook` → canonical entries; `presets.ts` holds this pilot's custom-column mappings |
-| `src/core/reconcile`  | `matchRecords` (pairing two imports), `diffPair` (field-by-field comparison), `resolve` (apply decisions), `toMergedLogbook`                  |
-| `src/core/validation` | 35 rules, `validate`, per-source default rule switches                                                                                        |
-| `src/core/reports`    | `experienceReport` (layout in, tables out), built-in layouts, look-back dates, `reportToCsv`                                                  |
-| `src/core/query`      | `indexLogbook`, `filterEntries`, `sortEntries`, `totalEntries`, `groupEntries`, `aircraftUsage`                                               |
-| `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                           |
-| `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers; sun position (`isNight`, `isNightForLandings`)                                          |
-| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions, aircraft edits, profile documents), `importFile`, `loadAudit`, airport loader |
-| `src/app`             | React screens: shell, import, ledger, entry detail, report, aircraft, audit, settings; `art/silhouettes.ts` holds the type drawings           |
-| `scripts`             | `profile`, `audit`, `validate`, `report`, `build:airports` command-line tools                                                                 |
-| `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit                        |
-| `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                      |
+| Path                  | What it is                                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/core/model`      | Canonical types: `Entry`, `Airframe`, `AircraftType`, `Logbook`                                                                                                                  |
+| `src/core/aircraft`   | Built-in type list and `matchType`; the pilot's aircraft edits (`applyAircraftEdits`); drawings per type (`silhouetteOf`); engine buckets                                        |
+| `src/core/importers`  | `importLogTen`, `importForeFlight` → `SourceRecord`s; `toLogbook` → canonical entries; `presets.ts` holds this pilot's custom-column mappings                                    |
+| `src/core/reconcile`  | `matchRecords` (pairing two imports), `diffPair` (field-by-field comparison), `resolve` (apply decisions), `toMergedLogbook`                                                     |
+| `src/core/validation` | 35 rules, `validate`, per-source default rule switches                                                                                                                           |
+| `src/core/reports`    | `experienceReport` (layout in, tables out), built-in layouts, look-back dates, `reportToCsv`                                                                                     |
+| `src/core/backup`     | The backup file: shape and version (`types.ts`), `toBackup`, `parseBackup`, `summarizeBackup`, migrations                                                                        |
+| `src/core/query`      | `indexLogbook`, `filterEntries`, `sortEntries`, `totalEntries`, `groupEntries`, `aircraftUsage`                                                                                  |
+| `src/core/airports`   | Bundled airport table (generated, ~3 MB) and lookup                                                                                                                              |
+| `src/core/time`       | Durations in minutes; UTC clock ⇄ local date helpers; sun position (`isNight`, `isNightForLandings`)                                                                             |
+| `src/storage`         | Dexie database, `LogbookStore` (books, source files, decisions, aircraft edits, profile documents), `importFile`, `loadAudit`, `collectBackup` / `restoreBackup`, airport loader |
+| `src/app`             | React screens: shell, import, ledger, entry detail, report, aircraft, audit, settings; `art/silhouettes.ts` holds the type drawings                                              |
+| `scripts`             | `profile`, `audit`, `validate`, `report`, `build:airports` command-line tools                                                                                                    |
+| `fixtures`            | Synthetic exports that reproduce each file quirk; `fixtures/pair` is a matching LogTen + ForeFlight pair for the audit; `fixtures/backup` holds a sample backup per version      |
+| `data/`               | Git-ignored. Real exports and generated reports go here and nowhere else                                                                                                         |
 
 Contracts live in each folder's `types.ts`. They were written first and the implementations
 built against them; change a contract deliberately, not in passing.
@@ -130,7 +131,7 @@ Core:
   and to set up a workflow for drawing them. The file's header says how to add one.
 - People are keyed by the words of their name in any order. Different spellings of one
   person (7 people in the real exports) are still separate people and show as crew differences.
-- No export (DESIGN §9), no Drive sync (§3.3).
+- No export to the apps (DESIGN §9), no Drive sync (§3.3). The backup file is the JSON export.
 - Flight numbers are not parsed out of ForeFlight comments; they show up as longer remarks.
 - Custom field definitions (`CUSTOM_FIELDS`, beside the column mappings in
   `src/core/importers/presets.ts`) are this pilot's, hard-coded like the mappings.
@@ -204,56 +205,67 @@ DESIGN §8.3 is the full description. In short:
 Left for later: a user-defined filter for the report (the pilot mentioned LogTen's; not
 needed yet), certificates as structured data rather than text.
 
-## Milestone 8: where to start
+## Milestone 8: what is built, and what is next
 
-Goal: data survives a lost iPad (DESIGN §3.1, §3.3). Before starting, ask the pilot whether to
-do milestone 9 (manual entry) first: they do not plan to rely on the app until 9 is done, and
-until then nearly everything on the device can be rebuilt (see below).
+Goal: data survives a lost iPad (DESIGN §3.1, §3.3). Agreed with the pilot: build the backup
+file, restore, and Drive sync now; leave two-device merge until after milestone 9.
 
-**What is on the device today** (Dexie database `flight-log`, schema version 3, `src/storage/db.ts`):
+**Built (DESIGN §3.3, "as built"):**
 
-| Table                                                        | What                                                                                                      | Can it be rebuilt?                                                                                                           |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `entries`, `airframes`, `aircraftTypes`, `devices`, `people` | three books (`logten`, `foreflight`, `main`), rows keyed by book                                          | imported books: yes, from `sources`; `main`: yes, from `sources` + `decisions` (until milestone 9 adds hand-entered flights) |
-| `books`                                                      | info per book (file name, import time, notes)                                                             | yes, with the books                                                                                                          |
-| `sources`                                                    | the two export files as text (about 1.6 MB together)                                                      | only from the apps themselves                                                                                                |
-| `decisions`                                                  | every audit decision                                                                                      | **no**                                                                                                                       |
-| `profile`                                                    | aircraft edits (`aircraftEdits`), saved report layouts (`doc:reportLayouts`), pilot details (`doc:pilot`) | **no**                                                                                                                       |
-| `settings`                                                   | display choices, selected book, working report layout                                                     | not worth backing up except name order and flight-number style                                                               |
+- `src/core/backup`: the file shape (version 1), `toBackup`, `serializeBackup`, `parseBackup`
+  (refuses with a reason; migrates older versions), `summarizeBackup`. A synthetic sample of
+  version 1 is in `fixtures/backup/v1.json` and is read by the tests.
+- `src/storage/backup.ts`: `collectBackup` reads the store; `restoreBackup` rebuilds the two
+  imported books from the backup's export files (`convertSource`, shared with `importFile`)
+  and writes everything in one transaction through the new `LogbookStore.replaceAll`.
+- Settings → Backup (`src/app/components/BackupSettings.tsx`): download, share, restore with a
+  confirmation that names what is deleted, last-backup time, persistent-storage request.
+- The backup is the small one: export files, decisions, aircraft edits, profile documents,
+  `main`, and the name-order and flight-number-style settings. Restore replaces; it never
+  merges.
 
-Measured on the real exports: each imported book is about 1.6–1.7 MB of JSON, the source files
-1.6 MB, decisions and edits small. DESIGN §3.3 guessed 2 MB for `logbook.json`; backing up
-everything would be about 5–7 MB. A smaller backup holds the source files, decisions, profile
-and `main`, and rebuilds the two imported books on restore with `importFile`. Settle which with
-the pilot.
+Measured: converting and saving both imported books at the real exports' row counts takes
+about a quarter of a second in Node (an iPad will be slower, but it is the same work as one
+import of each file). Not yet tried: a backup of the real data, and download or share from
+the iPad home-screen app.
 
-**Timestamps for merging two devices:** entries have `createdAt` / `updatedAt` / `deletedAt`;
-decisions have `decidedAt`; aircraft edits and profile documents have none. Record-by-record
-merge (DESIGN §3.3) needs a timestamp on each, or whole-document "newest wins" for those.
-Before milestone 9 nothing but the audit and the aircraft screens writes, so two-device merge
-matters little until then.
+**What is on the device** (Dexie database `flight-log`, schema version 3, `src/storage/db.ts`):
 
-**Google Drive needs the pilot first:** a Google Cloud project with the Drive API enabled, an
-OAuth client ID of type "Web application", and authorised JavaScript origins for the Railway
-URL and `http://localhost:5173`. The client ID is not secret; pass it at build time
-(`VITE_GOOGLE_CLIENT_ID`, set on Railway). Use Google Identity Services' token client with the
-`drive.file` scope (the app sees only files it created). The known risk is sign-in from the
-iPad home-screen app (popups in standalone mode, one-hour tokens with no silent renewal;
-DESIGN §3.1): try that on the real iPad before building much on it. Write the Drive calls
-behind an interface so tests use an in-memory fake; this container may not reach Google.
+| Table                                                        | What                                                                                                      | In the backup?                          |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `entries`, `airframes`, `aircraftTypes`, `devices`, `people` | three books (`logten`, `foreflight`, `main`), rows keyed by book                                          | `main` only; the other two are rebuilt  |
+| `books`                                                      | info per book (file name, import time, notes)                                                             | for `main`; rebuilt for the others      |
+| `sources`                                                    | the two export files as text (about 1.6 MB together)                                                      | yes                                     |
+| `decisions`                                                  | every audit decision                                                                                      | yes                                     |
+| `profile`                                                    | aircraft edits (`aircraftEdits`), saved report layouts (`doc:reportLayouts`), pilot details (`doc:pilot`) | yes                                     |
+| `settings`                                                   | display choices, selected book, working report layout, last-backup time                                   | name order and flight-number style only |
 
-A suggested order:
+A new table or profile document must be added to the backup (`BackupContents`, `collectBackup`,
+`restoreBackup`, `replaceAll`) with a new version and migration, or it will not survive a restore.
 
-1. **Contract first** (`src/core/backup/types.ts`): the file shape with a schema version, and
-   pure `toBackup` / `fromBackup` plus migrations, round-trip tested against a saved sample.
-2. **Download a backup and restore one by hand** in Settings. Needs no Google account, works
-   offline, and is useful on its own. Restoring replaces what is on the device after a
-   confirmation that names what will be lost.
-3. **Drive**: sign in, create the visible "Flight Log" folder, upload `logbook.json`, write
-   `backups/logbook-YYYY-MM-DD.json` at most once a day and before every import or bulk
-   change, show when the last successful sync was. An expired sign-in only delays sync.
-4. **Two devices**: merge on sync by record timestamps with tombstones, upload with Drive's
-   version check and retry on conflict.
+**Next: Drive.** The pilot is creating a Google Cloud project of its own for this app (not
+shared with another project, so the sign-in screen carries this app's name): Drive API
+enabled, an OAuth client ID of type "Web application", authorised JavaScript origins for the
+Railway URL and `http://localhost:5173`, the `drive.file` scope only, published to production
+so grants do not lapse weekly. The client ID is not secret; pass it at build time
+(`VITE_GOOGLE_CLIENT_ID`, set on Railway). Then, in order:
+
+1. **Sign-in trial** on the real iPad from the home-screen app: Google Identity Services'
+   token client, one file uploaded. This is the known risk (popups in standalone mode,
+   one-hour tokens with no silent renewal; DESIGN §3.1). If it fails, the small token-exchange
+   service of §3.1 is needed before anything else. Load Google's script only when the pilot
+   taps "Sign in", so the app stays whole offline.
+2. **Sync:** create the visible "Flight Log" folder, upload `logbook.json` (the backup shape),
+   write `backups/logbook-YYYY-MM-DD.json` at most once a day and before every import or bulk
+   change, show when the last successful sync was. An expired sign-in only delays sync. Write
+   the Drive calls behind an interface so tests use an in-memory fake; this container may not
+   reach Google. `toBackup` gives the same text for the same data apart from `createdAt`,
+   which can be used to skip an upload when nothing changed.
+3. **After milestone 9, two devices:** merge on sync by record timestamps with tombstones, and
+   upload with a version check and retry on conflict (whether Drive's check is strong enough
+   is not verified). Entries have `createdAt` / `updatedAt` / `deletedAt` and decisions have
+   `decidedAt`; aircraft edits and profile documents have no timestamp and need one each, or
+   whole-document "newest wins".
 
 ## Asked for, for manual entry (milestone 9)
 

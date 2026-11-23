@@ -18,6 +18,9 @@ function stripBook<T extends object>(row: Row<T>): T {
   return rest as unknown as T;
 }
 
+const liveCount = (logbook: Logbook) =>
+  logbook.entries.filter((e) => e.deletedAt === undefined).length;
+
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const byId = (a: { id: string }, b: { id: string }) => compare(a.id, b.id);
 
@@ -92,7 +95,7 @@ export function createDexieStore(db: FlightLogDb = new FlightLogDb()): LogbookSt
     },
 
     async replaceBook(book, logbook, info) {
-      const entryCount = logbook.entries.filter((e) => e.deletedAt === undefined).length;
+      const entryCount = liveCount(logbook);
       await db.transaction('rw', [...bookTables, db.books], async () => {
         await clearBook(book);
         await db.entries.bulkAdd(withBook(book, logbook.entries));
@@ -156,6 +159,45 @@ export function createDexieStore(db: FlightLogDb = new FlightLogDb()): LogbookSt
     async removeDecisions(keys) {
       if (keys.length === 0) return;
       await db.decisions.bulkDelete([...keys]);
+      announce();
+    },
+
+    async replaceAll(snapshot) {
+      await db.transaction(
+        'rw',
+        [...bookTables, db.books, db.sources, db.decisions, db.profile, db.settings],
+        async () => {
+          await Promise.all([
+            ...bookTables.map((table) => table.clear()),
+            db.books.clear(),
+            db.sources.clear(),
+            db.decisions.clear(),
+            db.profile.clear(),
+          ]);
+          for (const { book, logbook, info } of snapshot.books) {
+            await db.entries.bulkAdd(withBook(book, logbook.entries));
+            await db.airframes.bulkAdd(withBook(book, logbook.airframes));
+            await db.aircraftTypes.bulkAdd(withBook(book, logbook.aircraftTypes));
+            await db.devices.bulkAdd(withBook(book, logbook.devices));
+            await db.people.bulkAdd(withBook(book, logbook.people));
+            await db.books.put({ ...info, book, entryCount: liveCount(logbook) });
+          }
+          await db.sources.bulkPut(snapshot.sources);
+          await db.decisions.bulkPut(
+            snapshot.decisions.map((decision) => ({ key: decisionKey(decision), decision })),
+          );
+          await db.profile.put({ key: AIRCRAFT_EDITS, value: snapshot.aircraftEdits });
+          await db.profile.bulkPut(
+            Object.entries(snapshot.documents).map(([doc, value]) => ({
+              key: `doc:${doc}`,
+              value,
+            })),
+          );
+          await db.settings.bulkPut(
+            Object.entries(snapshot.settings).map(([key, value]) => ({ key, value })),
+          );
+        },
+      );
       announce();
     },
 
