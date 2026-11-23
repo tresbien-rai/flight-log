@@ -631,7 +631,7 @@ interface DraftEntry {
 
 ## 11. Build order
 
-Milestones 0 to 7 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4), aircraft management (§4.3) and the experience report (§8.3). Milestone 8 is under way: the backup file and restore are built (§3.3); Drive sign-in and sync are next, and two-device merge follows milestone 9.
+Milestones 0 to 7 are done: the import screen and logbook ledger (§11.1), the audit (§7.2–§7.4), aircraft management (§4.3) and the experience report (§8.3). Milestone 8 is under way: the backup file and restore are built (§3.3) and a Drive sign-in trial is in Settings; sync is next once sign-in is proved on the iPad, and two-device merge follows milestone 9.
 
 | #     | Milestone                                                     | What exists at the end                                                                            |
 | ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

@@ -9,3 +9,5 @@ export type { RestoreOutcome } from './backup';
 export { loadAirports } from './airportsLoader';
 export { AUDIT_SIDES, loadAudit, reresolve, writeMainBook } from './audit';
 export type { Audit, AuditOutcome } from './audit';
+export { createDriveApi, createMemoryDrive, DriveError, FOLDER_NAME } from './drive';
+export type { DriveApi, DriveFile } from './drive';
