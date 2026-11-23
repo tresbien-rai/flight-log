@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Backup } from '@core/backup';
 import { completePilotProfile, type PilotProfile } from '@core/model';
 import { BackupSettings } from '../components/BackupSettings';
+import { DriveTrial } from '../components/DriveTrial';
 import { useProfileDoc } from '../hooks/useProfileDoc';
 import { useShell } from './shellContext';
 
@@ -190,6 +191,7 @@ export function SettingsRoute() {
           </div>
         </fieldset>
         <BackupSettings onRestored={onRestored} />
+        <DriveTrial />
       </div>
     </div>
   );

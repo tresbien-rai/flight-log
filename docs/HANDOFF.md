@@ -3,22 +3,22 @@
 Where the project stands, how to pick it up, and what is known to be unfinished. Read this
 first, then `docs/DESIGN.md` for the reasoning behind each decision. Update both as work lands.
 
-Last updated: milestone 8, first part (backup file and restore). Next: Drive sign-in trial on the iPad, then Drive sync.
+Last updated: milestone 8, second part (Drive sign-in trial built, not yet tried by the pilot). Next: try it on the iPad, then Drive sync.
 
 ## State
 
-| Milestone                   | Status                       |
-| --------------------------- | ---------------------------- |
-| 0 Scaffold                  | done                         |
-| 1 Core model + importers    | done                         |
-| 2 Matching + diff           | done                         |
-| 3 Validation engine         | done                         |
-| 4 App shell + local storage | done, deployed               |
-| 5 Audit UI                  | done                         |
-| 6 Aircraft management       | done                         |
-| 7 Experience report         | done                         |
-| 8 Drive sync + backups      | backup file done; Drive next |
-| 9–10                        | not started (see DESIGN §11) |
+| Milestone                   | Status                         |
+| --------------------------- | ------------------------------ |
+| 0 Scaffold                  | done                           |
+| 1 Core model + importers    | done                           |
+| 2 Matching + diff           | done                           |
+| 3 Validation engine         | done                           |
+| 4 App shell + local storage | done, deployed                 |
+| 5 Audit UI                  | done                           |
+| 6 Aircraft management       | done                           |
+| 7 Experience report         | done                           |
+| 8 Drive sync + backups      | backup done; Drive trial built |
+| 9–10                        | not started (see DESIGN §11)   |
 
 - **Branch:** `main` exists and is what Railway deploys. Work happens on a branch and reaches
   `main` by pull request, merged by the agent once CI passes (see CLAUDE.md). In the
@@ -243,25 +243,35 @@ the iPad home-screen app.
 A new table or profile document must be added to the backup (`BackupContents`, `collectBackup`,
 `restoreBackup`, `replaceAll`) with a new version and migration, or it will not survive a restore.
 
-**Next: Drive.** The pilot is creating a Google Cloud project of its own for this app (not
-shared with another project, so the sign-in screen carries this app's name): Drive API
-enabled, an OAuth client ID of type "Web application", authorised JavaScript origins for the
-Railway URL and `http://localhost:5173`, the `drive.file` scope only, published to production
-so grants do not lapse weekly. The client ID is not secret; pass it at build time
-(`VITE_GOOGLE_CLIENT_ID`, set on Railway). Then, in order:
+**Drive sign-in trial (built, waiting on the pilot's setup and the iPad).** Settings → Google
+Drive (trial) signs in with Google Identity Services' token client (`drive.file` scope; the
+script is loaded only on the tap, `src/app/lib/googleSignIn.ts`) and writes and reads back
+`sign-in-test.json` in a visible "Flight Log" folder in the pilot's Drive
+(`src/storage/drive.ts`: a `DriveApi` interface, a `fetch` version and an in-memory fake;
+`src/app/components/DriveTrial.tsx`). It reports whether it is running as the home-screen app,
+when the token expires, and, on failure, what Google said. No logbook data is sent.
 
-1. **Sign-in trial** on the real iPad from the home-screen app: Google Identity Services'
-   token client, one file uploaded. This is the known risk (popups in standalone mode,
-   one-hour tokens with no silent renewal; DESIGN §3.1). If it fails, the small token-exchange
-   service of §3.1 is needed before anything else. Load Google's script only when the pilot
-   taps "Sign in", so the app stays whole offline.
-2. **Sync:** create the visible "Flight Log" folder, upload `logbook.json` (the backup shape),
-   write `backups/logbook-YYYY-MM-DD.json` at most once a day and before every import or bulk
-   change, show when the last successful sync was. An expired sign-in only delays sync. Write
-   the Drive calls behind an interface so tests use an in-memory fake; this container may not
-   reach Google. `toBackup` gives the same text for the same data apart from `createdAt`,
-   which can be used to skip an upload when nothing changed.
-3. **After milestone 9, two devices:** merge on sync by record timestamps with tombstones, and
+The pilot's Google Cloud project has its own client ID, set at build time as
+`VITE_GOOGLE_CLIENT_ID` (public, not a secret; on Railway, and in `.env.local` for local
+runs, which git ignores). Checked from this container against Google itself: the client ID is
+recognised, but Google answered "Error 401: invalid_client, no registered origin" until the
+client lists **Authorised JavaScript origins**: the Railway URL and `http://localhost:5173`
+(scheme and host exactly, no path or trailing slash). While the project is unpublished
+("Testing"), only listed test users can sign in and grants lapse after 7 days; publish it
+before relying on it. Not yet tried: a real sign-in (needs the pilot's account), and above all
+sign-in from the iPad home-screen app. That is the known risk (popups in standalone mode,
+one-hour tokens with no silent renewal; DESIGN §3.1). If it fails there, the small
+token-exchange service of §3.1 is needed before anything else.
+
+**Then, in order:**
+
+1. **Sync:** upload `logbook.json` (the backup shape) to the "Flight Log" folder, and write
+   `backups/logbook-YYYY-MM-DD.json` at most once a day and before every import or bulk
+   change; show when the last successful sync was. An expired sign-in only delays sync.
+   `DriveApi` needs subfolder and dated-file support for this; tests use `createMemoryDrive`.
+   `toBackup` gives the same text for the same data apart from `createdAt`, which can be used
+   to skip an upload when nothing changed. Drop the trial section once sync replaces it.
+2. **After milestone 9, two devices:** merge on sync by record timestamps with tombstones, and
    upload with a version check and retry on conflict (whether Drive's check is strong enough
    is not verified). Entries have `createdAt` / `updatedAt` / `deletedAt` and decisions have
    `decidedAt`; aircraft edits and profile documents have no timestamp and need one each, or
