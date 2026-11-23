@@ -25,7 +25,7 @@ Last updated: milestone 8, second part (Drive sign-in trial built, not yet tried
   milestone 7 session the agent's merge was blocked by the session's own permission check, and
   the pilot merged by hand; if that happens, say so and leave the merge to the pilot. GitHub's default branch may still be the first working branch
   (`claude/clever-gauss-07u08g`); switch it to `main` in the repository settings.
-- **Hosting:** <https://web-production-30875dbb.up.railway.app>. Railway project "Flight Log", service `web`, built from `main` on every
+- **Hosting:** <https://flight-log.up.railway.app> (until 2026-11-23 it was `web-production-30875dbb.up.railway.app`, which no longer exists; the browser keeps data per address, so anything stored under the old one is reachable only from a copy of the app still running there). Railway project "Flight Log", service `web`, built from `main` on every
   push. `npm run build` then `npm start` (a static file server over `dist/`). Nothing on
   Railway stores logbook data; it lives in the browser's IndexedDB.
 - **Checks:** `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`,
@@ -253,10 +253,13 @@ when the token expires, and, on failure, what Google said. No logbook data is se
 
 The pilot's Google Cloud project has its own client ID, set at build time as
 `VITE_GOOGLE_CLIENT_ID` (public, not a secret; on Railway, and in `.env.local` for local
-runs, which git ignores). Checked from this container against Google itself: the client ID is
-recognised, but Google answered "Error 401: invalid_client, no registered origin" until the
-client lists **Authorised JavaScript origins**: the Railway URL and `http://localhost:5173`
-(scheme and host exactly, no path or trailing slash). While the project is unpublished
+runs, which git ignores). The client lists **Authorised JavaScript origins**
+`https://flight-log.up.railway.app` and `http://localhost:5173` (scheme and host exactly, no
+path or trailing slash); redirect URIs are not used. Checked from this container against
+Google itself on 2026-11-23: both origins are accepted, and any other gets "Error 400:
+origin_mismatch". To re-check an origin without a browser at that address, take the
+`/o/oauth2/v2/auth` URL the app opens, change its `origin` and `ss_domain` parameters, and
+open it. While the project is unpublished
 ("Testing"), only listed test users can sign in and grants lapse after 7 days; publish it
 before relying on it. Not yet tried: a real sign-in (needs the pilot's account), and above all
 sign-in from the iPad home-screen app. That is the known risk (popups in standalone mode,
